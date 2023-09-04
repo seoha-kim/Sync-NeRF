@@ -8,3 +8,8 @@ imageio
 torchmetrics
 scikit-image
 tinycudann
+configargparse
+imageio-ffmpeg
+kornia
+tensorboard
+pyfvvdp

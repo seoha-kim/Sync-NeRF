@@ -275,7 +275,7 @@ class Video360Dataset(BaseDataset):
         if self.split in ['train', 'test_optim']:
             num_frames_per_camera = len(self.imgs) // (len(self.per_cam_near_fars) * h * w)
             camera_id = torch.div(image_id, num_frames_per_camera, rounding_mode='floor')  # (num_rays)
-            out['camids'] = camera_id.long() #+ 1
+            out['camids'] = camera_id.long() + 1
             out['near_fars'] = self.per_cam_near_fars[camera_id, :]
         else:
             out['near_fars'] = self.per_cam_near_fars  # Only one test camera

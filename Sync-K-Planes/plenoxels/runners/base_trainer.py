@@ -86,7 +86,9 @@ class BaseTrainer(abc.ABC):
             loss = recon_loss
             for r in self.regularizers:
                 reg_loss = r.regularize(self.model, model_out=fwd_out)
+                l1loss = 0.0001 * torch.norm(fwd_out["offset"], p=1)
                 loss = loss + reg_loss
+                loss = loss + l1loss
 
             self.timer.check("regularizaion-forward")
         # Update weights
@@ -97,7 +99,7 @@ class BaseTrainer(abc.ABC):
         scale = self.gscaler.get_scale()
         self.gscaler.update()
         self.timer.check("scaler-step")
-        self.offset_log.write(f'"\t".join({fwd_out["offset"].detach().cpu().numpy()}) \n')
+        self.offset_log.write("\t".join(fwd_out["offset"].detach().cpu().numpy().astype(str))+"\n")
 
         # Report on losses
         if self.global_step % self.calc_metrics_every == 0:
@@ -221,10 +223,8 @@ class BaseTrainer(abc.ABC):
 
         err = (gt - preds) ** 2
         return {
-            #"mse": torch.mean(err),
             "psnr": metrics.psnr(preds, gt),
             "ssim": metrics.ssim(preds, gt),
-            #"ms-ssim": metrics.msssim(preds, gt),
             "alex_lpips": metrics.rgb_lpips(preds, gt, net_name='alex', device=err.device),
             "vgg_lpips": metrics.rgb_lpips(preds, gt, net_name='vgg', device=err.device)
         }
@@ -486,7 +486,7 @@ def initialize_model(
         use_appearance_embedding=False,
         num_images=num_images,
         cam_nums=dset.cam_nums,
-        offset_lambda=extra_args.pop("offset_lr"),
+        offset_lambda=extra_args.pop("offset_lambda"),
         offset_freeze_iter=extra_args.pop("offset_freeze_iter"),
         test_optim=extra_args.pop("test_optim"),
         **extra_args)
