@@ -4,8 +4,8 @@
 [![project_page](https://img.shields.io/badge/project_page-68BC71)](https://seoha-kim.github.io/sync-nerf/)
 [![dataset](https://img.shields.io/badge/dataset-00A98F)](https://yonsei-my.sharepoint.com/:f:/g/personal/yj_uh_o365_yonsei_ac_kr/EshaQEg8FIZIqlU-mU8npikBIl8Rwk5Dvb6X6HvuFeU0_Q?e=GLdtqF/)
 
-Official repository for <b>Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</b><br>
-Sync-NeRF enables dynamic NeRFs to successfully represent the dynamic scnene from time-unsynchroznied videos.
+> Official repository for <a >Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</a><br>
+enabling dynamic NeRFs to successfully represent the dynamic scene from unsynchroznied videos.
 
 ## Setup
 We provide an integrated requirements file for K-Planes and MixVoxels.
