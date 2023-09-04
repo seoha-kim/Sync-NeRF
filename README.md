@@ -5,7 +5,7 @@
 [![dataset](https://img.shields.io/badge/dataset-00A98F)](https://yonsei-my.sharepoint.com/:f:/g/personal/yj_uh_o365_yonsei_ac_kr/EshaQEg8FIZIqlU-mU8npikBIl8Rwk5Dvb6X6HvuFeU0_Q?e=GLdtqF/)
 
 Official repository for <a href="">Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</a><br>
-enabling dynamic NeRFs to successfully represent the scene from unsynchroznied videos.
+enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dynamic dataset.
 
 ## Setup
 We provide an integrated requirements file for K-Planes and MixVoxels.
