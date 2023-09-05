@@ -11,7 +11,7 @@ enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied
 </p>
 
 ## Setup
-We provide an integrated requirements file for K-Planes and MixVoxels.
+We provide an integrated requirements file for MixVoxels and K-Planes.
 ```
 pip install -r requirements.txt
 ```
