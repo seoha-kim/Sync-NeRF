@@ -6,6 +6,9 @@
 
 Official repository for <a href="">Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</a><br>
 enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dataset.
+<p align="center" width="100;">
+<img src="https://github.com/seoha-kim/Sync-NeRF/assets/46925617/b053f146-5bc7-4715-a273-37020c035f19">
+</p>
 
 ## Setup
 We provide an integrated requirements file for K-Planes and MixVoxels.
