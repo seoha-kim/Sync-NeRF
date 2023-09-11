@@ -138,6 +138,7 @@ class LowrankModel(nn.Module):
         )
 
         self.cam_offset = torch.nn.Parameter(torch.zeros([cam_nums]))
+        torch.nn.init.normal_(self.cam_offset[1:], -0.001, 0.001)
 
     def step_before_iter(self, step):
         if self.use_proposal_weight_anneal:
@@ -188,14 +189,16 @@ class LowrankModel(nn.Module):
             ones = torch.ones_like(rays_o[..., 0:1])
             nears = ones * nears
             fars = ones * fars
-
-        # freeze offset for stability
+            
         if global_step == self.offset_freeze_iter:
             self.cam_offset.requires_grad = False
-        if type(camids) == type(None):
-            camids = torch.zeros(1).cuda()
 
-        timestamps = timestamps + self.cam_offset[camids]
+        if global_step != None:
+            timestamps = timestamps + self.cam_offset[camids]
+        else:
+            if type(camids) == type(None):
+                camids = torch.zeros(1).cuda()
+            timestamps = timestamps + self.cam_offset[camids]
             
         ray_bundle = RayBundle(origins=rays_o, directions=rays_d, nears=nears, fars=fars)
         # Note: proposal sampler mustn't use timestamps (=camera-IDs) with appearance embedding,
@@ -238,7 +241,7 @@ class LowrankModel(nn.Module):
         other_params = model_params["other"] + [p for pnp in pn_params for p in pnp["other"]]
         offset_params = self.cam_offset
         if self.test_optim: # only offset parameters are updated
-            return [{"params": offset_params, "lr": lr * self.offset_lambda}]
+            return [{"params": offset_params, "lr": lr * self.offset_lambda}] 
         return [
             {"params": field_params, "lr": lr},
             {"params": nn_params, "lr": lr},

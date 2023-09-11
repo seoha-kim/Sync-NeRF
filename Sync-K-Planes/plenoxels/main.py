@@ -2,9 +2,6 @@ import argparse
 import importlib.util
 import logging
 import os
-gpu = os.environ["CUDA_VISIBLE_DEVICES"] 
-print(f"CUDA_VISIBLE_DEVICES set to {gpu}")
-
 import pprint
 import sys
 from typing import List, Dict, Any
@@ -13,6 +10,8 @@ import numpy as np
 import torch
 import torch.utils.data
 from plenoxels.runners import video_trainer
+from plenoxels.runners import phototourism_trainer
+from plenoxels.runners import static_trainer
 from plenoxels.utils.create_rendering import render_to_path, decompose_space_time
 from plenoxels.utils.parse_args import parse_optfloat
 
@@ -27,7 +26,6 @@ def setup_logging(log_level=logging.INFO):
 
 def load_data(model_type: str, data_downsample, data_dirs, validate_only: bool, render_only: bool, **kwargs):
     data_downsample = parse_optfloat(data_downsample, default_val=1.0)
-
     return video_trainer.load_data(
         data_downsample, data_dirs, validate_only=validate_only,
         render_only=render_only, **kwargs)
@@ -54,7 +52,7 @@ def main():
     setup_logging()
 
     p = argparse.ArgumentParser(description="")
-    
+
     p.add_argument('--render-only', action='store_true')
     p.add_argument('--validate-only', action='store_true')
     p.add_argument('--spacetime-only', action='store_true')
@@ -82,14 +80,15 @@ def main():
     # that's derived from config - and should not a string.
     overrides: List[str] = args.override
     overrides_dict = {ovr.split("=")[0]: ovr.split("=")[1] for ovr in overrides}
-    config.update(overrides_dict)
+    # config.update(overrides_dict)
     config.update({'test_optim':args.test_optim})
 
     model_type = "video"
     validate_only = args.validate_only
+    test_optim = args.test_optim
     render_only = args.render_only
     spacetime_only = args.spacetime_only
-
+    
     if validate_only and render_only:
         raise ValueError("render_only and validate_only are mutually exclusive.")
     if render_only and spacetime_only:
@@ -99,6 +98,7 @@ def main():
 
     pprint.pprint(config)
     if validate_only or render_only:
+        args.log_dir = os.path.join(config['logdir'], config['expname'])
         assert args.log_dir is not None and os.path.isdir(args.log_dir)
     else:
         save_config(config)
@@ -113,6 +113,8 @@ def main():
 
     if validate_only:
         trainer.validate()
+    elif test_optim:
+        trainer.test_optim()
     elif render_only:
         render_to_path(trainer, extra_name="")
     elif spacetime_only:

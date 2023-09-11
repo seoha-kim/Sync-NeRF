@@ -31,7 +31,7 @@ class BaseDataset(Dataset, ABC):
         self.is_contracted = is_contracted
         self.weights_subsampled = weights_subsampled
         self.batch_size = batch_size
-        if self.split == 'train':
+        if self.split in ['train', 'test_optim']:
             assert self.batch_size is not None
         self.rays_o = rays_o
         self.rays_d = rays_d
@@ -98,13 +98,13 @@ class BaseDataset(Dataset, ABC):
                 return torch.randint(0, self.num_samples, size=(batch_size, ))
 
     def __len__(self):
-        if self.split == 'train':
+        if self.split in ['train', 'test_optim']:
             return (self.num_samples + self.batch_size - 1) // self.batch_size
         else:
             return self.num_samples
 
     def __getitem__(self, index, return_idxs: bool = False):
-        if self.split == 'train':
+        if self.split in ['train', 'test_optim']:
             index = self.get_rand_ids(index)
         out = {}
         if self.rays_o is not None:

@@ -39,6 +39,7 @@ class BaseTrainer(abc.ABC):
         self.num_steps = num_steps
         self.train_fp16 = train_fp16
         self.save_every = save_every
+        self.valid_every = valid_every
         self.save_outputs = save_outputs
         self.device = device
         self.eval_batch_size = kwargs.get('eval_batch_size', 8129)
@@ -59,7 +60,6 @@ class BaseTrainer(abc.ABC):
         self.regularizers = self.init_regularizers(**self.extra_args)
         self.gscaler = torch.cuda.amp.GradScaler(enabled=self.train_fp16)
         self.test_optim = kwargs['test_optim'] 
-        self.valid_every = 1000 if self.test_optim else valid_every
 
         self.model.to(self.device)
 
@@ -99,7 +99,7 @@ class BaseTrainer(abc.ABC):
         scale = self.gscaler.get_scale()
         self.gscaler.update()
         self.timer.check("scaler-step")
-        self.offset_log.write("\t".join(fwd_out["offset"].detach().cpu().numpy().astype(str))+"\n")
+        self.offset_log.write(f'{fwd_out["offset"].detach().cpu().numpy()}\n')
 
         # Report on losses
         if self.global_step % self.calc_metrics_every == 0:
@@ -223,8 +223,10 @@ class BaseTrainer(abc.ABC):
 
         err = (gt - preds) ** 2
         return {
+            # "mse": torch.mean(err),
             "psnr": metrics.psnr(preds, gt),
             "ssim": metrics.ssim(preds, gt),
+            # "ms-ssim": metrics.msssim(preds, gt),
             "alex_lpips": metrics.rgb_lpips(preds, gt, net_name='alex', device=err.device),
             "vgg_lpips": metrics.rgb_lpips(preds, gt, net_name='vgg', device=err.device)
         }
@@ -327,8 +329,8 @@ class BaseTrainer(abc.ABC):
         torch.save(self.get_save_dict(), model_fname)
 
     def load_model(self, checkpoint_data, training_needed: bool = True):
-        model_dict = self.model.state_dict()
         if self.test_optim:
+            model_dict = self.model.state_dict()
             pretrained_dict = {k: v for k, v in checkpoint_data['model'].items() if k != 'cam_offset'}
             model_dict.update(pretrained_dict)
             self.model.load_state_dict(model_dict, strict=False)
@@ -437,7 +439,7 @@ def init_dloader_random(_):
 
 
 def initialize_model(
-        runner: 'VideoTrainer',
+        runner: Union['StaticTrainer', 'PhototourismTrainer', 'VideoTrainer'],
         **kwargs) -> LowrankModel:
     """Initialize a `LowrankModel` according to the **kwargs parameters.
 
@@ -449,9 +451,8 @@ def initialize_model(
     Returns:
         Initialized LowrankModel.
     """
-    # from .phototourism_trainer import PhototourismTrainer
+    from .phototourism_trainer import PhototourismTrainer
     extra_args = copy(kwargs)
-
     extra_args.pop('global_scale', None)
     extra_args.pop('global_translation', None)
 
@@ -483,13 +484,14 @@ def initialize_model(
         is_contracted=dset.is_contracted,
         global_scale=global_scale,
         global_translation=global_translation,
-        use_appearance_embedding=False,
+        use_appearance_embedding=isinstance(runner, PhototourismTrainer),
         num_images=num_images,
         cam_nums=dset.cam_nums,
         offset_lambda=extra_args.pop("offset_lambda"),
         offset_freeze_iter=extra_args.pop("offset_freeze_iter"),
         test_optim=extra_args.pop("test_optim"),
         **extra_args)
+
     log.info(f"Initialized {model.__class__} model with "
              f"{sum(np.prod(p.shape) for p in model.parameters()):,} parameters, "
              f"using ndc {model.is_ndc} and contraction {model.is_contracted}. "

@@ -17,6 +17,9 @@ from .llff_dataset import load_llff_poses_helper
 from .ray_utils import (
     generate_spherical_poses, create_meshgrid, stack_camera_dirs, get_rays, generate_spiral_path
 )
+from .synthetic_nerf_dataset import (
+    load_360_images, load_360_intrinsics,
+)
 
 
 class Video360Dataset(BaseDataset):
@@ -60,49 +63,95 @@ class Video360Dataset(BaseDataset):
         self.num_frames = num_frames
         if contraction and ndc:
             raise ValueError("Options 'contraction' and 'ndc' are exclusive.")
+        if "lego" in datadir or "dnerf" in datadir:
+            dset_type = "synthetic"
+        else:
+            dset_type = "llff"
 
         # Note: timestamps are stored normalized between -1, 1.
-        if split == "render":
-            assert ndc, "Unable to generate render poses without ndc: don't know near-far."
-            per_cam_poses, per_cam_near_fars, intrinsics, _ = load_llffvideo_poses(
-                datadir, downsample=self.downsample, split='all', near_scaling=self.near_scaling)
-            render_poses = generate_spiral_path(
-                per_cam_poses.numpy(), per_cam_near_fars.numpy(), n_frames=300,
-                n_rots=2, zrate=0.5, dt=self.near_scaling, percentile=60)
-            self.poses = torch.from_numpy(render_poses).float()
-            self.per_cam_near_fars = torch.tensor([[0.4, self.ndc_far]])
-            timestamps = torch.linspace(0, self.num_frames-1, len(self.poses))
-            imgs = None
+        if dset_type == "llff":
+            if split == "render":
+                assert ndc, "Unable to generate render poses without ndc: don't know near-far."
+                per_cam_poses, per_cam_near_fars, intrinsics, _ = load_llffvideo_poses(
+                    datadir, downsample=self.downsample, split='all', near_scaling=self.near_scaling)
+                render_poses = generate_spiral_path(
+                    per_cam_poses.numpy(), per_cam_near_fars.numpy(), n_frames=300,
+                    n_rots=2, zrate=0.5, dt=self.near_scaling, percentile=60)
+                self.poses = torch.from_numpy(render_poses).float()
+                self.per_cam_near_fars = torch.tensor([[0.4, self.ndc_far]])
+                timestamps = torch.linspace(0, (self.num_frames-1), len(self.poses))
+                imgs = None
+            else:
+                if split == 'test_optim':
+                    per_cam_poses, per_cam_near_fars, intrinsics, videopaths, cam_nums = load_llffvideo_poses_testoptim(
+                    datadir, downsample=self.downsample, split=split, near_scaling=self.near_scaling, hold_id=hold_id)
 
+                else:
+                    per_cam_poses, per_cam_near_fars, intrinsics, videopaths, cam_nums = load_llffvideo_poses(
+                    datadir, downsample=self.downsample, split=split, near_scaling=self.near_scaling, hold_id=hold_id)
+
+                    if split == 'test':
+                        keyframes = False
+
+                poses, imgs, timestamps, self.median_imgs = load_llffvideo_data(
+                    videopaths=videopaths, cam_poses=per_cam_poses, intrinsics=intrinsics,
+                    split=split, keyframes=keyframes, keyframes_take_each=30)
+                self.poses = poses.float()
+                if contraction:
+                    self.per_cam_near_fars = per_cam_near_fars.float()
+                else:
+                    self.per_cam_near_fars = torch.tensor(
+                        [[0.0, self.ndc_far]]).repeat(per_cam_near_fars.shape[0], 1)
+                self.cam_nums = cam_nums
+
+                
+
+            # These values are tuned for the salmon video
+            self.global_translation = torch.tensor([0, 0, 2.])
+            self.global_scale = torch.tensor([0.5, 0.6, 1])
+            # Normalize timestamps between -1, 1
+            timestamps = (timestamps.float() / (self.num_frames-1)) * 2 - 1
+
+        elif dset_type == "synthetic":
+            assert not contraction, "Synthetic video dataset does not work with contraction."
+            assert not ndc, "Synthetic video dataset does not work with NDC."
+            if split == 'render':
+                num_tsteps = 120
+                dnerf_durations = {'hellwarrior': 100, 'mutant': 150, 'hook': 100, 'bouncingballs': 150, 'lego': 50, 'trex': 200, 'standup': 150, 'jumpingjacks': 200}
+                for scene in dnerf_durations.keys():
+                    if 'dnerf' in datadir and scene in datadir:
+                        num_tsteps = dnerf_durations[scene]
+                render_poses = torch.stack([
+                    generate_spherical_poses(angle, -30.0, 4.0)
+                    for angle in np.linspace(-180, 180, num_tsteps + 1)[:-1]
+                ], 0)
+                imgs = None
+                self.poses = render_poses
+                timestamps = torch.linspace(0.0, 1.0, render_poses.shape[0])
+                _, transform = load_360video_frames(
+                    datadir, 'train', max_cameras=self.max_cameras, max_tsteps=self.max_tsteps)
+                img_h, img_w = 800, 800
+            else:
+                frames, transform = load_360video_frames(
+                    datadir, split, max_cameras=self.max_cameras, max_tsteps=self.max_tsteps)
+                imgs, self.poses = load_360_images(frames, datadir, split, self.downsample)
+                timestamps = torch.tensor(
+                    [fetch_360vid_info(f)[0] for f in frames], dtype=torch.float32)
+                img_h, img_w = imgs[0].shape[:2]
+            if ndc:
+                self.per_cam_near_fars = torch.tensor([[0.0, self.ndc_far]])
+            else:
+                self.per_cam_near_fars = torch.tensor([[2.0, 6.0]])
+            if "dnerf" in datadir:
+                # dnerf time is between 0, 1. Normalize to -1, 1
+                timestamps = timestamps * 2 - 1
+            else:
+                # lego (our vid) time is like dynerf: between 0, 30.
+                timestamps = (timestamps.float() / torch.amax(timestamps)) * 2 - 1
+            intrinsics = load_360_intrinsics(
+                transform, img_h=img_h, img_w=img_w, downsample=self.downsample)
         else:
-            if split == 'test_optim':
-                per_cam_poses, per_cam_near_fars, intrinsics, videopaths, cam_nums = load_llffvideo_poses_testoptim(
-                datadir, downsample=self.downsample, split=split, near_scaling=self.near_scaling, hold_id=hold_id)
-
-            else:
-                per_cam_poses, per_cam_near_fars, intrinsics, videopaths, cam_nums = load_llffvideo_poses(
-                datadir, downsample=self.downsample, split=split, near_scaling=self.near_scaling, hold_id=hold_id)
-            if split == 'test':
-                keyframes = False
-
-            poses, imgs, timestamps, self.median_imgs = load_llffvideo_data(
-                videopaths=videopaths, cam_poses=per_cam_poses, intrinsics=intrinsics,
-                split=split, keyframes=keyframes, keyframes_take_each=30)
-            self.poses = poses.float()
-            if contraction:
-                self.per_cam_near_fars = per_cam_near_fars.float()
-            else:
-                self.per_cam_near_fars = torch.tensor(
-                    [[0.0, self.ndc_far]]).repeat(per_cam_near_fars.shape[0], 1)
-            self.cam_nums = cam_nums
-
-            
-
-        # These values are tuned for the salmon video
-        self.global_translation = torch.tensor([0, 0, 2.])
-        self.global_scale = torch.tensor([0.5, 0.6, 1])
-        # Normalize timestamps between -1, 1
-        timestamps = (timestamps.float() / (self.num_frames-1)) * 2 - 1
+            raise ValueError(datadir)
 
         self.timestamps = timestamps * self.normalize_scale
         if split in ['train', 'test_optim']:
@@ -124,7 +173,7 @@ class Video360Dataset(BaseDataset):
         if scene_bbox is not None:
             scene_bbox = torch.tensor(scene_bbox)
         else:
-            scene_bbox = get_bbox(datadir, is_contracted=contraction)
+            scene_bbox = get_bbox(datadir, is_contracted=contraction, dset_type=dset_type)
         super().__init__(
             datadir=datadir,
             split=split,
@@ -142,7 +191,7 @@ class Video360Dataset(BaseDataset):
 
         self.isg_weights = None
         self.ist_weights = None
-        if split == "train":  # Only use importance sampling with DyNeRF videos
+        if split == "train" and dset_type == 'llff':  # Only use importance sampling with DyNeRF videos
             if os.path.exists(os.path.join(datadir, f"isg_weights.pt")):
                 self.isg_weights = torch.load(os.path.join(datadir, f"isg_weights.pt"))
                 log.info(f"Reloaded {self.isg_weights.shape[0]} ISG weights from file.")
@@ -174,7 +223,7 @@ class Video360Dataset(BaseDataset):
                 t_e = time.time()
                 log.info(f"Computed {self.ist_weights.shape[0]} IST weights in {t_e - t_s:.2f}s.")
 
-        if split == "test_optim":  # Only use importance sampling with DyNeRF videos
+        if split == "test_optim" and dset_type == 'llff':  # Only use importance sampling with DyNeRF videos
             if os.path.exists(os.path.join(datadir, f"isg_testoptim_weights.pt")):
                 self.isg_weights = torch.load(os.path.join(datadir, f"isg_testoptim_weights.pt"))
                 log.info(f"Reloaded {self.isg_weights.shape[0]} ISG test optim weights from file.")
@@ -204,7 +253,7 @@ class Video360Dataset(BaseDataset):
                 self.ist_weights = (self.ist_weights.reshape(-1) / torch.sum(self.ist_weights))
                 torch.save(self.ist_weights, os.path.join(datadir, f"ist_testoptim_weights.pt"))
                 t_e = time.time()
-                log.info(f"Computed {self.ist_weights.shape[0]} IST test optim weights in {t_e - t_s:.2f}s.")            
+                log.info(f"Computed {self.ist_weights.shape[0]} IST test optim weights in {t_e - t_s:.2f}s.")
 
         if self.isg:
             self.enable_isg()
@@ -235,7 +284,8 @@ class Video360Dataset(BaseDataset):
         dev = "cpu"
 
         if self.split in ['train', 'test_optim']:
-            index = self.get_rand_ids(index)
+            index = self.get_rand_ids(index)  # [batch_size // (weights_subsampled**2)]
+            # np.save('get_rand_ids.npy', index)
             if self.weights_subsampled == 1 or self.sampling_weights is None:
                 # Nothing special to do, either weights_subsampled = 1, or not using weights.
                 image_id = torch.div(index, h * w, rounding_mode='floor')
@@ -304,11 +354,12 @@ class Video360Dataset(BaseDataset):
         return out
 
 
-def get_bbox(datadir: str, is_contracted=False) -> torch.Tensor:
+def get_bbox(datadir: str, dset_type: str, is_contracted=False) -> torch.Tensor:
     """Returns a default bounding box based on the dataset type, and contraction state.
 
     Args:
         datadir (str): Directory where data is stored
+        dset_type (str): A string defining dataset type (e.g. synthetic, llff)
         is_contracted (bool): Whether the dataset will use contraction
 
     Returns:
@@ -316,10 +367,12 @@ def get_bbox(datadir: str, is_contracted=False) -> torch.Tensor:
     """
     if is_contracted:
         radius = 2
-
-    else:
+    elif dset_type == 'synthetic':
+        radius = 1.5
+    elif dset_type == 'llff':
         return torch.tensor([[-3.0, -1.67, -1.2], [3.0, 1.67, 1.2]])
-
+    else:
+        radius = 1.3
     return torch.tensor([[-radius, -radius, -radius], [radius, radius, radius]])
 
 
@@ -407,7 +460,8 @@ def load_llffvideo_poses(datadir: str,
     if split == 'train':
         split_ids = np.arange(1, poses.shape[0])
     elif split == 'test':
-        split_ids = np.array([0]) 
+        split_ids = np.array([hold_id])
+        print('split_ids:', split_ids)
     else:
         split_ids = np.arange(poses.shape[0])
 
@@ -447,12 +501,12 @@ def load_llffvideo_poses_testoptim(datadir: str,
     
     # The first camera is reserved for testing, following https://github.com/facebookresearch/Neural_3D_Video/releases/tag/v1.0
     if split == 'train':
-        split_ids = np.array([0])
+        split_ids = np.array([hold_id])
     elif split == 'test':
-        split_ids = np.array([0])
+        split_ids = np.array([hold_id])
         print('split_ids:', split_ids)
     else: # 'test_optim'
-        split_ids = np.array([0])
+        split_ids = np.array([hold_id])
 
     poses = torch.from_numpy(poses[split_ids])
     near_fars = torch.from_numpy(near_fars[split_ids])

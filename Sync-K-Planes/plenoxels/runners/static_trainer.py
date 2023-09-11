@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-# from plenoxels.datasets import SyntheticNerfDataset, LLFFDataset
+from plenoxels.datasets import SyntheticNerfDataset, LLFFDataset
 from plenoxels.models.lowrank_model import LowrankModel
 from plenoxels.utils.ema import EMA
 from plenoxels.utils.my_tqdm import tqdm

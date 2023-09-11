@@ -1,0 +1,4 @@
+*.pth
+*.th
+Sync-MixVoxels/logs/
+Sync-MixVoxels/data/

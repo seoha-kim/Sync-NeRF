@@ -55,7 +55,7 @@ def interpolate_ms_features(pts: torch.Tensor,
                             concat_features: bool,
                             num_levels: Optional[int],
                             ) -> torch.Tensor:
-                            
+    # print(pts.shape)
     coo_combs = list(itertools.combinations(
         range(pts.shape[-1]), grid_dimensions)
     )

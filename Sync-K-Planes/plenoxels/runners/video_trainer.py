@@ -192,7 +192,7 @@ class VideoTrainer(BaseTrainer):
             self.report_test_metrics(per_scene_metrics, extra_name=None),
         ]
         df = pd.DataFrame.from_records(val_metrics)
-        df.to_csv(os.path.join(self.log_dir, f"test_metrics_step{self.global_step}.csv"), sep='\t')
+        df.to_csv(os.path.join(self.log_dir, f"test_metrics_step{self.global_step}.csv"))
 
 
     @torch.no_grad()
@@ -268,7 +268,6 @@ def init_tr_data(data_downsample, data_dir, split, **kwargs):
     keyframes = kwargs.get('keyframes', False)
     batch_size = kwargs['batch_size']
     log.info(f"Loading Video360Dataset with downsample={data_downsample}")
-
     tr_dset = Video360Dataset(
         data_dir, split=split, downsample=data_downsample,
         batch_size=batch_size,
@@ -293,7 +292,6 @@ def init_tr_data(data_downsample, data_dir, split, **kwargs):
 
 def init_ts_data(data_dir, split, hold_id=0, **kwargs):
     downsample = 2.0 # Both D-NeRF and DyNeRF use downsampling by 2
-
     ts_dset = Video360Dataset(
         data_dir, split=split, downsample=downsample,
         max_cameras=kwargs.get('max_test_cameras', None), max_tsteps=kwargs.get('max_test_tsteps', None),
@@ -301,6 +299,8 @@ def init_ts_data(data_dir, split, hold_id=0, **kwargs):
         near_scaling=float(kwargs.get('near_scaling', 0)), ndc_far=float(kwargs.get('ndc_far', 0)),
         hold_id=hold_id,
         scene_bbox=kwargs['scene_bbox'],
+        normalize_scale = kwargs.get('normalize_scale', False),
+        num_frames = kwargs.get('num_frames', False)
     )
     return {"ts_dset": ts_dset}
 
@@ -309,10 +309,10 @@ def load_data(data_downsample, data_dirs, validate_only, render_only, test_optim
     assert len(data_dirs) == 1
     od: Dict[str, Any] = {}
     if not validate_only and not render_only:
-        split = 'test_optim' if test_optim else 'train'
+        split = "test_optim" if test_optim else "train"
         od.update(init_tr_data(data_downsample, data_dirs[0], split=split, **kwargs))
     else:
         od.update(tr_loader=None, tr_dset=None)
-    test_split = 'render' if render_only else 'test'
+    test_split = "render" if render_only else "test"
     od.update(init_ts_data(data_dirs[0], split=test_split, hold_id=hold_id, **kwargs))
     return od
