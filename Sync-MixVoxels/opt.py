@@ -58,7 +58,7 @@ def config_parser(cmd=None):
     parser.add_argument("--zero_dynamic_sigma_thresh", type=float, default=0.001)
 
     parser.add_argument('--dataset_name', type=str, default='blender',
-                        choices=['blender', 'llff', 'llffvideo', 'nsvf', 'dtu','tankstemple', 'own_data', 'ssd'])
+                        choices=['blender','blendervideo', 'llff', 'llffvideo', 'nsvf', 'dtu','tankstemple', 'own_data', 'ssd'])
     parser.add_argument("--near", type=float, default=0.0)
     parser.add_argument("--far", type=float, default=1.0)
     parser.add_argument("--frame_start", type=int, default=0, help='frame start')

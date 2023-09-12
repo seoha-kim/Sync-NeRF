@@ -1349,4 +1349,5 @@ if __name__ == '__main__':
 
 """
 python train.py --config ./configs/real_unsync/unsync_coffee_martini.txt --cam_offset
+python train.py --config ./configs/real_unsync/unsync_coffee_martini.txt --cam_offset --test-optim
 """
