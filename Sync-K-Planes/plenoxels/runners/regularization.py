@@ -250,3 +250,16 @@ class DistortionLoss(Regularizer):
         loss_bi_1 = w[..., 1:] * wm_cumsum[..., :-1]
         loss_bi = 2 * (loss_bi_0 - loss_bi_1).sum(dim=-1).mean()
         return loss_bi + loss_uni
+class Density_L1(Regularizer):
+    def __init__(self, initial_value):
+        super().__init__('density-l1', initial_value)
+
+    def _regularize(self, model: LowrankModel, model_out, **kwargs) -> torch.Tensor:
+        """
+        Efficient O(N) realization of distortion loss.
+        from https://github.com/sunset1995/torch_efficient_distloss/blob/main/torch_efficient_distloss/eff_distloss.py
+        There are B rays each with N sampled points.
+        """
+        loss = torch.abs(model_out['accumulation']).mean()
+        
+        return loss

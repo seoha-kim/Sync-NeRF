@@ -17,7 +17,14 @@ pip install -r requirements.txt
 ```
 
 ## MixVoxels
-
+We provide example configs for the Unsynchronized Plenoptic Video Dataset and Unsynchronized Dynamic Blender Dataset. You can train the model using the following command:
+```
+python train.py --config path/to/config.txt --cam_offset
+```
+We also propose a method for optimizing time offsets during test time. You can execute this test-time optimization using the following command:
+```
+python train.py --config path/to/config.txt --cam_offset --test-optim
+```
 ## K-Planes
 K-Planes offers two versions of config: hybrid and explicit. We provide example configs for the Unsynchronized Plenoptic Video Dataset and Unsynchronized Dynamic Blender Dataset. You can train the model using the following command:
 ```

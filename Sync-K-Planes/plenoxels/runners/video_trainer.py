@@ -18,7 +18,7 @@ from plenoxels.ops.image.io import write_video_to_file
 from plenoxels.models.lowrank_model import LowrankModel
 from .base_trainer import BaseTrainer, init_dloader_random, initialize_model
 from .regularization import (
-    PlaneTV, TimeSmoothness, HistogramLoss, L1TimePlanes, DistortionLoss
+    PlaneTV, TimeSmoothness, HistogramLoss, L1TimePlanes, DistortionLoss,Density_L1
 )
 
 
@@ -255,6 +255,7 @@ class VideoTrainer(BaseTrainer):
             TimeSmoothness(kwargs.get('time_smoothness_weight_proposal_net', 0.0), what='proposal_network'),
             HistogramLoss(kwargs.get('histogram_loss_weight', 0.0)),
             DistortionLoss(kwargs.get('distortion_loss_weight', 0.0)),
+            Density_L1(kwargs.get('density_l1', 0.0)),
         ]
 
     @property
