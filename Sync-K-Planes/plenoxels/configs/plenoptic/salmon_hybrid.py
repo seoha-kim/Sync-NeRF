@@ -1,11 +1,11 @@
 config = {
  'expname': 'flame_salmon_1_frac1',
- 'logdir': './logs/real/main/hybrid',
+ 'logdir': './logs/real/hybrid',
  'device': 'cuda:0',
 
  # Run first for 1 step with data_downsample=4 to generate weights for ray importance sampling
  'data_downsample': 2,
- 'data_dirs': ['/home/vilab/dynamic/real/real_unsync_all/flame_salmon_1_frac1'],
+ 'data_dirs': ['path/to/data'],
  'contract': False,
  'ndc': True,
  'ndc_far': 2.6,

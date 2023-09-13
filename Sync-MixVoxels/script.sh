@@ -1,1 +1,0 @@
-python train.py --config ./configs/real_unsync/unsync_coffee_martini.txt --cam_offset

@@ -2,3 +2,4 @@
 *.th
 Sync-MixVoxels/logs/
 Sync-MixVoxels/data/
+*/__pycache__/

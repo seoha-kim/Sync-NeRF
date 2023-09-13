@@ -14,8 +14,8 @@ lr_dynamic_init = 0.03
 lr_dynamic_basis = 2e-3
 
 dataset_name = llffvideo
-datadir = ./data/real_unsync/sear_steak
-expname =  sear_steak
+datadir = path/to/data
+expname =  cook_spinach
 basedir = ./logs
 
 
@@ -40,7 +40,7 @@ sigma_static_thresh = 0.1
 
 sigma_diff_method = 'log'
 sigma_diff_weight = 0.0
-sigma_diff_log_thresh = 0.1
+sigma_diff_log_thresh = 0.05
 
 rgb_diff_weight = 0.0
 rgb_diff_log_thresh = 0.2
@@ -48,7 +48,7 @@ rgb_diff_log_thresh = 0.2
 loss_weight_static = 1
 dynamic_reg_weight = 0.1
 temporal_variance_threshold = 0.02
-dynamic_threshold = 0.7
+dynamic_threshold = 0.9
 rm_weight_mask_thre = 0.0001
 rm_weight_mask_thre_static = 0.00001
 n_train_frames = 270

@@ -14,7 +14,7 @@ lr_dynamic_init = 0.03
 lr_dynamic_basis = 2e-3
 
 dataset_name = llffvideo
-datadir = ./data/real_unsync/flame_salmon_1_frac1
+datadir = path/to/data
 expname =  flame_salmon_1_frac1
 basedir = ./logs
 

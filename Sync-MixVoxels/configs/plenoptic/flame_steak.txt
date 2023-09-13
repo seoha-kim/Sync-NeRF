@@ -14,8 +14,8 @@ lr_dynamic_init = 0.03
 lr_dynamic_basis = 2e-3
 
 dataset_name = llffvideo
-datadir = ./data/real_unsync/cut_roasted_beef
-expname =  cut_roasted_beef
+datadir = path/to/data
+expname =  flame_steak
 basedir = ./logs
 
 
