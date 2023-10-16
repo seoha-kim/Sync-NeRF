@@ -5,7 +5,7 @@ from .sh import eval_sh_bases
 import numpy as np
 import time
 from functools import reduce
-from .timeHead import DyRender, DirectDyRender, TimeMLPRender, ForrierDyRender#, CamOffset
+from .timeHead import DyRender, DirectDyRender, TimeMLPRender, ForrierDyRender
 from moviepy.editor import *
 
 def positional_encoding(positions, freqs):
@@ -271,7 +271,6 @@ class MixVoxels(torch.nn.Module):
     def init_cam_offset(self, args, offset_size, device):
         if args.cam_offset:
             self.cam_offset =  torch.nn.Parameter(torch.zeros([offset_size]).to(device))
-            # torch.nn.init.normal_(self.cam_offset[1:], -0.001, 0.001)
         else:
             self.cam_offset = torch.zeros([offset_size])
 
@@ -397,7 +396,6 @@ class MixVoxels(torch.nn.Module):
             alpha_volume = torch.from_numpy(np.unpackbits(ckpt['alphaMask.mask'])[:length].reshape(ckpt['alphaMask.shape']))
             self.alphaMask = AlphaGridMask(self.device, ckpt['alphaMask.aabb'].to(self.device), alpha_volume.float().to(self.device))
 
-        # state dict에서 mlp 관련 키 drop
         for key in list(ckpt['state_dict'].keys()):
             if key.startswith('renderModule'):
                 ckpt['state_dict'].pop(key)
@@ -452,8 +450,6 @@ class MixVoxels(torch.nn.Module):
         ), -1).to(self.device)
         dense_xyz = self.aabb[0] * (1-samples) + self.aabb[1] * samples
 
-        # dense_xyz = dense_xyz
-        # print(self.stepSize, self.distance_scale*self.aabbDiag)
         alpha = torch.zeros_like(dense_xyz[...,0])
         for i in range(gridSize[0]):
             alpha[i] = self.compute_alpha(dense_xyz[i].view(-1,3), self.stepSize).view((gridSize[1], gridSize[2]))
@@ -470,8 +466,6 @@ class MixVoxels(torch.nn.Module):
         ), -1).to(self.device)
         dense_xyz = self.aabb[0] * (1 - samples) + self.aabb[1] * samples
 
-        # dense_xyz = dense_xyz
-        # print(self.stepSize, self.distance_scale*self.aabbDiag)
         alpha = torch.zeros_like(dense_xyz[..., 0].unsqueeze(dim=-1).expand(-1, -1, -1, self.n_frames))
         for i in range(gridSize[0]):
             alpha[i] = self.compute_temporal_alpha(dense_xyz[i].view(-1, 3), self.stepSize)[0].view((gridSize[1], gridSize[2], self.n_frames))
@@ -534,8 +528,8 @@ class MixVoxels(torch.nn.Module):
                 vec = torch.where(rays_d == 0, torch.full_like(rays_d, 1e-6), rays_d)
                 rate_a = (self.aabb[1] - rays_o) / vec
                 rate_b = (self.aabb[0] - rays_o) / vec
-                t_min = torch.minimum(rate_a, rate_b).amax(-1)#.clamp(min=near, max=far)
-                t_max = torch.maximum(rate_a, rate_b).amin(-1)#.clamp(min=near, max=far)
+                t_min = torch.minimum(rate_a, rate_b).amax(-1)
+                t_max = torch.maximum(rate_a, rate_b).amin(-1)
                 mask_inbbox = t_max > t_min
 
             else:
@@ -692,7 +686,6 @@ class MixVoxels(torch.nn.Module):
         return self.forward_seperatly(rays_chunk, std_train, cam_id, camlist, white_bg, is_train, ndc_ray, N_samples, rgb_train, temporal_indices=temporal_indices,  iteration=iteration, test_cam_offset=test_cam_offset, **kwargs)
 
     def sampling_points(self, rays_chunk, ndc_ray, is_train, N_samples, alpha_filte=True):
-        # sample points
         viewdirs = rays_chunk[:, 3:6]
         if ndc_ray:
             xyz_sampled, z_vals, ray_valid = self.sample_ray_ndc(rays_chunk[:, :3], viewdirs, is_train=is_train,
@@ -783,9 +776,7 @@ class MixVoxels(torch.nn.Module):
                           render_path=False, nodepth=False, test_cam_offset=0.):
         timing = dict()
         _t = time.time()
-        # if self.dynamic_granularity == 'point_wise':
-        #     rgb_train = None
-            # assert rgb_train is None
+
         xyz_sampled, z_vals, ray_valid, dists, viewdirs = self.sampling_points(rays_chunk, ndc_ray, is_train, N_samples)
         xyz_sampled = self.normalize_coord(xyz_sampled)
         # temporal mask
@@ -794,8 +785,7 @@ class MixVoxels(torch.nn.Module):
             self.generate_temporal_mask(None if self.dynamic_granularity == 'point_wise' else rgb_train,
                                         std_train, xyz_sampled, dists, temporal_indices,
                                         dynamic_granularity=self.dynamic_granularity)
-        # import pdb
-        # pdb.set_trace()
+
         t_ = time.time()
         timing['preprocessing'] = t_ - _t
         _t = t_
@@ -811,16 +801,12 @@ class MixVoxels(torch.nn.Module):
 
         # ======================dynamic branch==================
         sigma = torch.zeros((*xyz_sampled.shape[:2], num_frames), device=xyz_sampled.device, dtype=(torch.float16 if self.amp else torch.float32))
-        # frequency_weight = torch.zeros((*xyz_sampled.shape[:2], 2*self.n_time_embedding+1), device=xyz_sampled.device, dtype=(torch.float16 if self.amp else torch.float32))
         rgb = torch.zeros((*xyz_sampled.shape[:2], num_frames, 3), device=xyz_sampled.device, dtype=sigma.dtype)
-        # frequency_weight_rgb = torch.zeros((*xyz_sampled.shape[:2], 2*self.n_time_embedding+1, 3), device=xyz_sampled.device, dtype=(torch.float16 if self.amp else torch.float32))
         ray_valid = ray_valid & (temporal_mask.any(dim=-1))
 
         if ray_valid.any():
             # dynamic branch
             sigma_feature = self.compute_densityfeature(xyz_sampled[ray_valid])
-
-            # cam offset 적용을 위한 cam id 넘겨주기
             camid_denmask = cam_id.expand(xyz_sampled.shape[:2])[ray_valid][:,None]
 
             if temporal_indices is None:
@@ -857,27 +843,14 @@ class MixVoxels(torch.nn.Module):
                     ret.update({'comp_depth_map': static_depth_map.unsqueeze(dim=1).expand(-1, self.n_frames)})
                 return ret
 
-        # sigma_diff = (sigma.mean(dim=-1)[temporal_mask.any(dim=-1)] - static_sigma.detach()[temporal_mask.any(dim=-1)])
-        # sigma Nr x ns x T
-        # static_sigma Nr x ns
         if not diff_calc:
             sigma_diff = (sigma - static_sigma.detach().unsqueeze(dim=-1))[ray_valid]
-        # sigma_ray_wise = sigma[temporal_mask.any(dim=-1).any(dim=-1)]
 
         _sub_time = time.time()
 
         if self.dynamic_granularity == 'point_wise':
-            # sigma = torch.where(temporal_mask, sigma,
-            #                     (static_sigma.detach().unsqueeze(-1).expand(-1, -1, sigma.shape[2])
-            #                      if self.static_point_detach else
-            #                      static_sigma.unsqueeze(-1).expand(-1, -1, sigma.shape[2])
-            #                      )
-            #                     )
-            # substitute of the above commented code
             sigma[~(temporal_mask.any(dim=-1))] = static_sigma.detach()[~(temporal_mask.any(dim=-1))].unsqueeze(dim=-1).to(sigma)
 
-        # alpha, weight, bg_weight = raw2alpha(sigma, dists * self.distance_scale)
-        # substitute of the above commented codes.
         ray_mask = temporal_mask.any(dim=-1).any(dim=-1)
         alpha = torch.zeros((*xyz_sampled.shape[:2], num_frames), device=xyz_sampled.device, dtype=(torch.float32))
         weight = torch.zeros((*xyz_sampled.shape[:2], num_frames), device=xyz_sampled.device, dtype=(torch.float32))
@@ -887,10 +860,7 @@ class MixVoxels(torch.nn.Module):
         weight[ray_mask] = valid_weight
         weight[~ray_mask] = static_weight[~ray_mask].unsqueeze(dim=-1).detach()
 
-        # alpha, weight [N_ray, N_sample, n_frames]
         app_mask = weight > self.rayMarch_weight_thres
-        # Note app_mask is implicitly added by ray_valid
-        # app_mask [N_ray, N_sample, n_frames]
         app_spatio_mask = app_mask.any(dim=2)
         timing['sub_test'] = time.time() - _sub_time
 
@@ -920,9 +890,7 @@ class MixVoxels(torch.nn.Module):
             app_features = self.compute_appfeature(xyz_sampled[app_spatio_mask])
             rgb_query_time = time.time() - rgb_query_start
 
-            # cam offset 적용을 위한 cam id 넘겨주기
             camid_rgbmask = cam_id.expand(xyz_sampled.shape[:2])[app_spatio_mask][:,None]
-
             if self.time_head == 'timemlprender':
                 valid_rgbs, cam_offset = self.renderModule(features=app_features, viewdirs=viewdirs[app_spatio_mask], cam_id=camid_rgbmask,
                                             spatio_temporal_sigma_mask=app_mask[app_spatio_mask], iteration=iteration,
@@ -942,14 +910,6 @@ class MixVoxels(torch.nn.Module):
         _t = t_
 
         if self.dynamic_granularity == 'point_wise':
-            # rgb Nr x ns x T x 3
-            # rgb = torch.where(temporal_mask.unsqueeze(dim=-1).expand(-1, -1, -1, rgb.shape[-1]), rgb,
-            #                   (static_rgb.detach().unsqueeze(dim=2).expand(-1, -1, rgb.shape[2], -1)
-            #                    if self.static_point_detach else
-            #                    static_rgb.unsqueeze(dim=2).expand(-1, -1, rgb.shape[2], -1)
-            #                   )
-            #                  )
-            # substitute of the above commented codes
             rgb[~(temporal_mask.any(dim=-1))] = static_rgb.detach()[~(temporal_mask.any(dim=-1))].unsqueeze(dim=1)
 
         # acc_map = torch.sum(weight, dim=1)
@@ -973,7 +933,10 @@ class MixVoxels(torch.nn.Module):
             with torch.no_grad():
                 # substitute of the above commented code
                 depth_map = torch.zeros((xyz_sampled.shape[0], num_frames), device=xyz_sampled.device, dtype=(torch.float32))
-                depth_map[ray_mask] = torch.sum(weight[ray_mask] * z_vals.unsqueeze(dim=-1), dim=1)
+                if ndc_ray:
+                    depth_map[ray_mask] = torch.sum(weight[ray_mask] * z_vals.unsqueeze(dim=-1), dim=1)
+                else:
+                    depth_map[ray_mask] = torch.sum(weight[ray_mask] * z_vals[ray_mask].unsqueeze(dim=-1), dim=1)
                 depth_map = depth_map + (1. - acc_map) * rays_chunk[..., -1].unsqueeze(dim=-1)
                 depth_map[~ray_mask] = static_depth_map[~ray_mask].detach().unsqueeze(dim=-1)
         # ===================================================
@@ -1028,9 +991,7 @@ class MixVoxels(torch.nn.Module):
                 'comp_rgb_map': comp_rgb_map,
                 'comp_depth_map': comp_depth_map,
             })
-        return ret_values # rgb, sigma, alpha, weight, bg_weight
-
-
+        return ret_values 
 
 
     def forward_bullet(self, rays_chunk, std_train, white_bg=True, is_train=False, ndc_ray=False, N_samples=-1, rgb_train=None, cam_id =None, camlist=None,
@@ -1063,9 +1024,7 @@ class MixVoxels(torch.nn.Module):
                           render_path=False, nodepth=False, factor=2, start_sec=0):
         timing = dict()
         _t = time.time()
-        # if self.dynamic_granularity == 'point_wise':
-        #     rgb_train = None
-            # assert rgb_train is None
+
         xyz_sampled, z_vals, ray_valid, dists, viewdirs = self.sampling_points(rays_chunk, ndc_ray, is_train, N_samples)
         xyz_sampled = self.normalize_coord(xyz_sampled)
         # temporal mask
@@ -1074,8 +1033,6 @@ class MixVoxels(torch.nn.Module):
             self.generate_temporal_mask(None if self.dynamic_granularity == 'point_wise' else rgb_train,
                                         std_train, xyz_sampled, dists, temporal_indices,
                                         dynamic_granularity=self.dynamic_granularity)
-        # import pdb
-        # pdb.set_trace()
         t_ = time.time()
         timing['preprocessing'] = t_ - _t
         _t = t_
@@ -1091,9 +1048,7 @@ class MixVoxels(torch.nn.Module):
 
         # ======================dynamic branch==================
         sigma = torch.zeros((*xyz_sampled.shape[:2], num_frames), device=xyz_sampled.device, dtype=(torch.float16 if self.amp else torch.float32))
-        # frequency_weight = torch.zeros((*xyz_sampled.shape[:2], 2*self.n_time_embedding+1), device=xyz_sampled.device, dtype=(torch.float16 if self.amp else torch.float32))
         rgb = torch.zeros((*xyz_sampled.shape[:2], num_frames, 3), device=xyz_sampled.device, dtype=sigma.dtype)
-        # frequency_weight_rgb = torch.zeros((*xyz_sampled.shape[:2], 2*self.n_time_embedding+1, 3), device=xyz_sampled.device, dtype=(torch.float16 if self.amp else torch.float32))
         ray_valid = ray_valid & (temporal_mask.any(dim=-1))
 
         # for bullet time rendering
@@ -1102,8 +1057,6 @@ class MixVoxels(torch.nn.Module):
         if ray_valid.any():
             # dynamic branch
             sigma_feature = self.compute_densityfeature(xyz_sampled[ray_valid])
-
-            # cam offset 적용을 위한 cam id 넘겨주기
             camid_denmask = cam_id.expand(xyz_sampled.shape[:2])[ray_valid][:,None]
 
             if temporal_indices is None:
@@ -1140,23 +1093,12 @@ class MixVoxels(torch.nn.Module):
                     ret.update({'comp_depth_map': static_depth_map.unsqueeze(dim=1).expand(-1, self.n_frames)})
                 return ret
 
-        # sigma_diff = (sigma.mean(dim=-1)[temporal_mask.any(dim=-1)] - static_sigma.detach()[temporal_mask.any(dim=-1)])
-        # sigma Nr x ns x T
-        # static_sigma Nr x ns
         if not diff_calc:
             sigma_diff = (sigma - static_sigma.detach().unsqueeze(dim=-1))[ray_valid]
-        # sigma_ray_wise = sigma[temporal_mask.any(dim=-1).any(dim=-1)]
 
         _sub_time = time.time()
 
         if self.dynamic_granularity == 'point_wise':
-            # sigma = torch.where(temporal_mask, sigma,
-            #                     (static_sigma.detach().unsqueeze(-1).expand(-1, -1, sigma.shape[2])
-            #                      if self.static_point_detach else
-            #                      static_sigma.unsqueeze(-1).expand(-1, -1, sigma.shape[2])
-            #                      )
-            #                     )
-            # substitute of the above commented code
             sigma[~(temporal_mask.any(dim=-1))] = static_sigma.detach()[~(temporal_mask.any(dim=-1))].unsqueeze(dim=-1).to(sigma)
 
         # alpha, weight, bg_weight = raw2alpha(sigma, dists * self.distance_scale)
@@ -1202,8 +1144,6 @@ class MixVoxels(torch.nn.Module):
             rgb_query_start = time.time()
             app_features = self.compute_appfeature(xyz_sampled[app_spatio_mask])
             rgb_query_time = time.time() - rgb_query_start
-
-            # cam offset 적용을 위한 cam id 넘겨주기
             camid_rgbmask = cam_id.expand(xyz_sampled.shape[:2])[app_spatio_mask][:,None]
 
             if self.time_head == 'timemlprender':
@@ -1225,14 +1165,6 @@ class MixVoxels(torch.nn.Module):
         _t = t_
 
         if self.dynamic_granularity == 'point_wise':
-            # rgb Nr x ns x T x 3
-            # rgb = torch.where(temporal_mask.unsqueeze(dim=-1).expand(-1, -1, -1, rgb.shape[-1]), rgb,
-            #                   (static_rgb.detach().unsqueeze(dim=2).expand(-1, -1, rgb.shape[2], -1)
-            #                    if self.static_point_detach else
-            #                    static_rgb.unsqueeze(dim=2).expand(-1, -1, rgb.shape[2], -1)
-            #                   )
-            #                  )
-            # substitute of the above commented codes
             rgb[~(temporal_mask.any(dim=-1))] = static_rgb.detach()[~(temporal_mask.any(dim=-1))].unsqueeze(dim=1)
 
         # acc_map = torch.sum(weight, dim=1)
@@ -1311,4 +1243,4 @@ class MixVoxels(torch.nn.Module):
                 'comp_rgb_map': comp_rgb_map,
                 'comp_depth_map': comp_depth_map,
             })
-        return ret_values # rgb, sigma, alpha, weight, bg_weight
+        return ret_values

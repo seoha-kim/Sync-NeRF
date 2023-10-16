@@ -11,7 +11,6 @@ from utils import get_ray_weight, SimpleSampler
 import time
 from .ray_utils import *
 import json
-
 # ========= Resize images with factors ==========
 def _minify(basedir, factors=[], resolutions=[], prefix='frames_'):
     needtoload = False
@@ -169,7 +168,7 @@ def get_spiral(c2ws_all, near_fars, rads_scale=0.5, N_views=120):
     # Find a reasonable "focus depth" for this dataset
     dt = 0.75
     close_depth, inf_depth = near_fars[0] * 0.9, near_fars[1] * 5.0
-    print(close_depth, inf_depth)
+    print('get_spiral close depth & inf_depth: ',close_depth, inf_depth)
     focal = 1.0 / (((1.0 - dt) / close_depth + dt / inf_depth))
 
     # Get radii for spiral path
@@ -273,7 +272,7 @@ class SSDDataset(Dataset):
 class BlenderVideoDataset(Dataset):
     def __init__(self, datadir, split='train', downsample=4, is_stack=False, hold_id=[0,], n_frames=100, white_bg=False,
                  render_views=120, tmp_path='memory', scene_box=[-3.0, -1.67, -1.2], temporal_variance_threshold=1000,
-                 frame_start=0, near=0.0, far=1.0, diffuse_kernel=0, args=None, no_load=False, optimize_test=None):
+                 frame_start=0, near=0.0, far=1.0, diffuse_kernel=0, args=None):
         """
         spheric_poses: whether the images are taken in a spheric inward-facing manner
                        default: False (forward-facing)
@@ -294,15 +293,14 @@ class BlenderVideoDataset(Dataset):
         self.frame_start = frame_start
         self.white_bg= white_bg
         self.near_far = [near, far]
-        self.read_meta(no_load, optimize_test)
+        self.read_meta()
         if scene_box is None:
             scene_box = [-3.0, -1.67, -1.2]
         self.scene_bbox = torch.tensor([scene_box, list(map(lambda x: -x, scene_box))])
         self.center = torch.mean(self.scene_bbox, dim=0).float().view(1, 1, 3)
         self.invradius = 1.0 / (self.scene_bbox[1] - self.center).float().view(1, 1, 3)
 
-
-    def read_meta(self, no_load=False, optimize_test=None):
+    def read_meta(self):
         with open(os.path.join(self.root_dir, f"transforms.json"), 'r') as f:
             transform = json.load(f)
         
@@ -311,6 +309,7 @@ class BlenderVideoDataset(Dataset):
             poses.append(transform['frames'][i]['transform_matrix'])
         poses = np.stack(poses)
 
+        #poses_bounds = np.load(os.path.join(self.root_dir, 'poses_bounds.npy'))  # (N_images, 17)
         if self.downsample == 1.0:
             self.video_paths = sorted(glob.glob(os.path.join(self.root_dir, 'frames_1/*')))
         else:
@@ -320,30 +319,52 @@ class BlenderVideoDataset(Dataset):
         _calc_std(os.path.join(self.root_dir, 'frames'+('_{}'.format(int(self.downsample)))),
                   os.path.join(self.root_dir, 'stds'+('' if self.frame_start==0 else str(self.frame_start))+('_{}'.format(int(self.downsample)))),
                   frame_start=self.frame_start, n_frame=self.n_frames)
-        # if 'coffee_martini' in self.root_dir and not self.no_delete:
+        # if 'coffee_martini' in self.root_dir:
         #    print('====================deletting unsynchronized video==============')
         #    poses_bounds = np.concatenate([poses_bounds[:12], poses_bounds[13:]], axis=0)
         #    self.video_paths.pop(12)
         # load full resolution image then resize
         if self.split in ['train', 'test']:
             assert len(transform['frames']) == len(self.video_paths), \
-                'Mismatch between number of images and number of poses!!'
+                'Mismatch between number of images and number of poses!'
+
+        #poses = poses_bounds[:, :15].reshape(-1, 3, 5)  # (N_images, 3, 5)
+        #self.near_fars = poses_bounds[:, -2:]  # (N_images, 2)
+        #hwf = poses[:, :, -1]
 
         # Step 1: rescale focal length according to training resolution
         W = transform['width']
         H = transform['height']
         self.focal = W / (2 * np.tan(transform['camera_angle_x'] / 2))
-
+        #H, W, self.focal = poses[0, :, -1]  # original intrinsics, same for all images
         self.img_wh = np.array([int(W / self.downsample), int(H / self.downsample)])
         if self.white_bg:
-            chromakey = Image.new("RGBA", tuple(self.img_wh), (136,203,230))
+            chromakey = Image.new("RGBA", tuple(self.img_wh), (255,255,255))
         self.focal = [self.focal * self.img_wh[0] / W, self.focal * self.img_wh[1] / H]
 
+        # Step 2: correct poses
+        # Original poses has rotation in form "down right back", change to "right up back"
+        # See https://github.com/bmild/nerf/issues/34
+        #poses = np.concatenate([poses[..., 1:2], -poses[..., :1], poses[..., 2:4]], -1)
+        # (N_images, 3, 4) exclude H, W, focal
+        #self.poses, self.pose_avg = center_poses(poses, self.blender2opencv)
+
+        # Step 3: correct scale so that the nearest depth is at a little more than 1.0
+        # See https://github.com/bmild/nerf/issues/34
+        #near_original = self.near_fars.min()
+        #scale_factor = near_original * 0.75  # 0.75 is the default parameter
+        # the nearest depth is at 1/0.75=1.33
+        #self.near_fars /= scale_factor
+        #self.poses[..., 3] /= scale_factor
         self.poses = poses[:,:3,:]
 
         # build rendering path
-        #N_views = self.render_views
-        #self.render_path = get_spiral(self.poses, self.near_fars, N_views=N_views)
+        N_views, N_rots = self.render_views, 2
+        tt = self.poses[:, :3, 3]  # ptstocam(poses[:3,3,:].T, c2w).T
+        #up = normalize(self.poses[:, :3, 1].sum(0))
+        #rads = np.percentile(np.abs(tt), 90, 0)
+
+        #self.render_path = get_spiral(self.poses, self.near_far, N_views=N_views)
 
         # distances_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
         # val_idx = np.argmin(distances_from_center)  # choose val image as the closest to
@@ -353,18 +374,15 @@ class BlenderVideoDataset(Dataset):
         W, H = self.img_wh
         self.directions = get_ray_directions_blender(H, W, self.focal)  # (H, W, 3)
 
+        #average_pose = average_poses(self.poses)
+        #dists = np.sum(np.square(average_pose[:3, 3] - self.poses[:, :3, 3]), -1)
+
+
         i_test = np.array(self.hold_id)
         video_list = i_test if self.split != 'train' else list(set(np.arange(len(self.poses))) - set(i_test))
 
         self.camlist = list(set(np.arange(len(self.poses))))
-        print('camlist:', self.camlist)
-        # print('video_list:', video_list)
-        if type(optimize_test) != type(None):
-            video_list = [optimize_test]
-            print('updated video_list:', video_list)
 
-        if no_load:
-            return
         # use first N_images-1 to train, the LAST is val
         self.all_rays = []
         self.all_rgbs = []
@@ -415,6 +433,7 @@ class BlenderVideoDataset(Dataset):
                 self.all_stds_without_diffusion += [std_frames_without_diffuse.half()]
 
             rays_o, rays_d = get_rays(self.directions, c2w)  # both (h*w, 3)
+            #rays_o, rays_d = ndc_rays_blender(H, W, self.focal[0], 1.0, rays_o, rays_d)
 
             self.all_rays += [torch.cat([rays_o, rays_d], 1).half()]  # (h*w, 6)
             self.all_camid += [torch.full([frames.shape[0]], i)[:, None]]

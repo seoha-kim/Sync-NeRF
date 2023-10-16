@@ -5,7 +5,6 @@ from argparse import Namespace
 
 import torch
 from tqdm.auto import tqdm
-import pdb
 
 import utils
 from opt import config_parser
@@ -317,9 +316,6 @@ def reconstruction(args):
         else:
             tensorf.load(ckpt)
 
-        # dy_optimizer = ckpt['dy_optimizer']
-        # optimizer = ckpt['optimizer']
-        # static_optimizer = ckpt['static_optimizer']
         n_iters = args.n_iters
         cur_time_head = args.time_head
 
@@ -396,6 +392,11 @@ def reconstruction(args):
             'PSNRs_st': [0],
             'sfrac': [],
         })
+    if args.l1loss:
+        Metrics.update({
+            'L1loss' : [],
+        }
+        )
     TESTKEYS = ['PSNRs_t', 'PSNRs_st']
 
     batch_factor = [1, 1, 1, 1] if args.batch_factor == [] else args.batch_factor
@@ -444,8 +445,6 @@ def reconstruction(args):
     elif args.temporal_sampler == 'continous_even':
         temporal_sampler = ContinousEvenTemporalSampler(args.n_frames, args.n_train_frames)
 
-    # debugger = DebugGradient(static_optimizer)
-    # debugger.check()
     pbar = tqdm(range(n_iters), miniters=args.progress_refresh_rate, file=sys.stdout)
     timing = {}
 
@@ -495,13 +494,6 @@ def reconstruction(args):
                         raise NotImplementedError
                     loss_ray_wise = loss_ray_wise.mean(dim=1)
 
-                    # loss_mask = loss_ray_wise > (iteration /args.n_iters *
-                    #                              (args.loss_weight_thresh_end - args.loss_weight_thresh_start)
-                    #                              + args.loss_weight_thresh_start)
-                    # loss = torch.cat([loss_ray_wise[loss_mask],
-                    #        (iteration/args.n_iters * (args.simple_sample_weight_end - args.simple_sample_weight) + args.simple_sample_weight) * loss_ray_wise[~loss_mask]]).mean()
-                    # loss_ray_wise [Nr]
-                    # loss ray_weight, std_train [Nr]
                     if args.ray_weighted == 0:
                         loss_ray_weight = torch.ones_like(loss_ray_wise)
                     elif args.ray_weighted == 1:
@@ -515,6 +507,11 @@ def reconstruction(args):
                     # hard_fraction = loss_mask.sum()/(loss_mask.shape[0])
                     Metrics['hfrac'].append(1.0)
                     total_loss += loss
+
+                    if args.l1loss:
+                        l1loss =  args.l1gamma * torch.norm(retva.cam_offset, p=1)
+                        total_loss += l1loss
+                        Metrics['L1loss'].append(l1loss.item())
 
                     Metrics['PSNRs'].append(-10.0 * np.log(loss.item()) / np.log(10.0))
                     Metrics['frac'].append(retva.fraction)
@@ -633,7 +630,7 @@ def reconstruction(args):
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
-            # debugger.check()
+
         else:
             total_static_loss.backward()
             static_optimizer.step()
@@ -683,7 +680,7 @@ def reconstruction(args):
 
         if iteration % args.vis_every == args.vis_every - 1 and args.N_vis!=0:
             test_camid = torch.Tensor([0])
-            tensorf.save(f'{logfolder}/{args.expname}_{iteration}.th', iteration, retva.cam_offset, optimizer, static_optimizer, dy_optimizer)
+            tensorf.save(f'{logfolder}/{args.expname}_{iteration + args.n_iters_pre}.th', iteration, retva.cam_offset, optimizer, static_optimizer, dy_optimizer)
             cuda_empty()
             with autocast(enabled=bool(args.amp)):
                 Metrics['PSNRs_t'], Metrics['PSNRs_st'], all_metrics = evaluation(test_dataset,tensorf, args, renderer, f'{logfolder}/imgs_vis/', N_vis=args.N_vis, cam_id=test_camid,
@@ -705,9 +702,9 @@ def reconstruction(args):
                 L1_reg_weight = args.L1_weight_rest
                 print("continuing L1_reg_weight", L1_reg_weight)
 
-            if not args.ndc_ray and iteration == update_AlphaMask_list[1]:
+            if not args.ndc_ray and iteration == update_AlphaMask_list[0]:
                 # filter rays outside the bbox
-                allrays,allrgbs = tensorf.filtering_rays(allrays,allrgbs)
+                allrays, allrgbs, allstds = tensorf.filtering_rays(allrays, allrgbs, allstds, bbox_only=True)
                 # trainingSampler = SimpleSampler(allrgbs.shape[0], args.batch_size)
             cuda_empty()
             current_batch_size = int(batch_factor[update_AlphaMask_list.index(iteration)] * args.batch_size)
@@ -760,7 +757,7 @@ def reconstruction(args):
 
         if n_iters > 1000 and (iteration % 1000 == 0 or iteration == n_iters-1):
             if n_iters == args.n_iters_pre and iteration == n_iters-1:
-                args.ckpt = f'{logfolder}/{args.expname}_pre.th'
+                args.ckpt = f'{logfolder}/{args.expname}_base.th'
                 tensorf.save(args.ckpt, iteration, retva.cam_offset, optimizer, static_optimizer, dy_optimizer)
             else:
                 tensorf.save(f'{logfolder}/{args.expname}.th', iteration, retva.cam_offset, optimizer, static_optimizer, dy_optimizer)
@@ -955,8 +952,6 @@ def test_offset_optimization(args, tensorf):
     elif args.temporal_sampler == 'continous_even':
         temporal_sampler = ContinousEvenTemporalSampler(args.n_frames, args.n_train_frames)
 
-    # debugger = DebugGradient(static_optimizer)
-    # debugger.check()
     pbar = tqdm(range(n_iters), miniters=args.progress_refresh_rate, file=sys.stdout)
     timing = {}
 
@@ -984,7 +979,6 @@ def test_offset_optimization(args, tensorf):
                                     device=device, is_train=True, rgb_train=rgb_train,
                                     temporal_indices=temporal_indices, static_branch_only=args.static_branch_only,
                                     std_train=std_train, nodepth=True, iteration=iteration)
-            # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
             retva = Namespace(**retva)
 
             # =============== dynamics prediction for points ===============
@@ -1144,7 +1138,7 @@ def test_offset_optimization(args, tensorf):
                 scaler.scale(total_loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
-            # debugger.check()
+
         else:
             total_static_loss.backward()
             static_optimizer.step()
@@ -1192,19 +1186,6 @@ def test_offset_optimization(args, tensorf):
                 if key not in TESTKEYS:
                     Metrics[key] = []
 
-        # if iteration % args.vis_every == args.vis_every - 1 and args.N_vis!=0:
-        #     test_camid = torch.Tensor([0])
-        #     tensorf.save(f'{logfolder}/{args.expname}_{iteration}.th', iteration, retva.cam_offset, optimizer, static_optimizer, dy_optimizer)
-        #     cuda_empty()
-        #     with autocast(enabled=bool(args.amp)):
-        #         Metrics['PSNRs_t'], Metrics['PSNRs_st'], all_metrics = evaluation(test_dataset,tensorf, args, renderer, f'{logfolder}/imgs_vis/', N_vis=args.N_vis, cam_id=test_camid,
-        #                             prtx=f'{iteration:06d}_', N_samples=nSamples, white_bg = args.chromakey, ndc_ray=ndc_ray, compute_extra_metrics=False, iteration=iteration,
-        #                             simplify=True, static_branch_only=args.static_branch_only)
-
-        #     summary_writer.add_scalar('test/psnr', np.mean(Metrics['PSNRs_t']), global_step=iteration)
-        #     summary_writer.add_scalar('test/psnr_sta', np.mean(Metrics['PSNRs_st']), global_step=iteration)
-        #     cuda_empty()
-
         if iteration in update_AlphaMask_list:
             # if reso_cur[0] * reso_cur[1] * reso_cur[2]<330**3:# update volume resolution
             reso_mask = reso_cur
@@ -1216,9 +1197,9 @@ def test_offset_optimization(args, tensorf):
                 L1_reg_weight = args.L1_weight_rest
                 print("continuing L1_reg_weight", L1_reg_weight)
 
-            if not args.ndc_ray and iteration == update_AlphaMask_list[1]:
+            if not args.ndc_ray and iteration == update_AlphaMask_list[0]:
                 # filter rays outside the bbox
-                allrays,allrgbs = tensorf.filtering_rays(allrays,allrgbs)
+                allrays, allrgbs, allstds = tensorf.filtering_rays(allrays, allrgbs, allstds, bbox_only=True)
                 # trainingSampler = SimpleSampler(allrgbs.shape[0], args.batch_size)
             cuda_empty()
             current_batch_size = int(batch_factor[update_AlphaMask_list.index(iteration)] * args.batch_size)
@@ -1250,7 +1231,7 @@ def test_offset_optimization(args, tensorf):
 
             if args.lr_upsample_reset:
                 print("reset lr to initial")
-                lr_scale = 1 #0.1 ** (iteration / args.n_iters)
+                lr_scale = 1
             else:
                 lr_scale = args.lr_decay_target_ratio ** (iteration / n_iters)
             grad_vars = tensorf.get_optparam_groups(args.lr_dynamic_init*lr_scale, args.lr_dynamic_basis*lr_scale, cur_time_head=cur_time_head)
@@ -1316,7 +1297,6 @@ def test_offset_optimization(args, tensorf):
                                 cam_id=test_camid, N_vis=-1, N_samples=-1, white_bg = args.chromakey, ndc_ray=ndc_ray,device=device)
 
 
-
 if __name__ == '__main__':
 
     torch.set_default_dtype(torch.float32)
@@ -1325,6 +1305,7 @@ if __name__ == '__main__':
 
     args = config_parser()
     print(args)
+
 
     if  args.export_mesh:
         export_mesh(args)
@@ -1335,8 +1316,8 @@ if __name__ == '__main__':
         render_test(args)
     else:
         logfolder = '{}/{}'.format(args.basedir, args.expname)
-        if os.path.exists(f'{logfolder}/{args.expname}_pre.th'):
-            args.ckpt = f'{logfolder}/{args.expname}_pre.th'
+        if os.path.exists(f'{logfolder}/{args.expname}_base.th'):
+            args.ckpt = f'{logfolder}/{args.expname}_base.th'
 
         if not args.ckpt:
             print('train from-scratch')
@@ -1345,9 +1326,3 @@ if __name__ == '__main__':
         tensorf = reconstruction(args)
         if args.test_optim:
             test_offset_optimization(args, tensorf)
-
-
-"""
-python train.py --config ./configs/real_unsync/unsync_coffee_martini.txt --cam_offset
-python train.py --config ./configs/real_unsync/unsync_coffee_martini.txt --cam_offset --test-optim
-"""

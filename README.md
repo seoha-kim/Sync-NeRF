@@ -2,7 +2,7 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2110.02711-006600)]() 
 [![project_page](https://img.shields.io/badge/project_page-68BC71)](https://seoha-kim.github.io/sync-nerf/)
-[![dataset](https://img.shields.io/badge/dataset-00A98F)](https://yonsei-my.sharepoint.com/:f:/g/personal/yj_uh_o365_yonsei_ac_kr/EshaQEg8FIZIqlU-mU8npikBIl8Rwk5Dvb6X6HvuFeU0_Q?e=GLdtqF/)
+[![dataset](https://img.shields.io/badge/dataset-00A98F)](https://yonsei-my.sharepoint.com/:f:/g/personal/hailey07_o365_yonsei_ac_kr/Er_SF3saB9JPp-uaj0W9NaABOZ0V7czk90yMp4UNybXvPg)
 
 Official repository for <a href="">Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</a><br>
 enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dataset.
@@ -34,6 +34,12 @@ We also propose a method for optimizing time offsets during test time. You can e
 ```
 python train.py --config path/to/config.txt --test_optim
 ```
+
+After completing model training, you can perform evaluation using the --render_only 1 flags.
+```
+python train.py --config path/to/config.txt --render_only 1 --ckpt path/to/checkpoint.pt
+```
+
 <br>
 
 ## K-Planes
@@ -42,7 +48,9 @@ K-Planes offers two versions of config: hybrid and explicit. We provide example 
 PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py
 ```
 
-After completing model training, you can perform evaluation using the --validate-only or --rendering-only flags. We also propose a method for optimizing time offsets during test time. You can execute this test-time optimization using the following command:
+We also propose a method for optimizing time offsets during test time. You can execute this test-time optimization using the following command:
 ```
-PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py --log-dir path/to/logfolder --valid-only --test_optim
+PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py --log-dir path/to/logfolder --test-optim
 ```
+
+After completing model training, you can perform evaluation using the --validate-only or --rendering-only flags.

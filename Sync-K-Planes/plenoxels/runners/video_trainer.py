@@ -291,10 +291,9 @@ def init_tr_data(data_downsample, data_dir, split, **kwargs):
     return {"tr_loader": tr_loader, "tr_dset": tr_dset}
 
 
-def init_ts_data(data_dir, split, hold_id=0, **kwargs):
-    downsample = 2.0 # Both D-NeRF and DyNeRF use downsampling by 2
+def init_ts_data(data_downsample,data_dir, split, hold_id=0, **kwargs):
     ts_dset = Video360Dataset(
-        data_dir, split=split, downsample=downsample,
+        data_dir, split=split, downsample=data_downsample,
         max_cameras=kwargs.get('max_test_cameras', None), max_tsteps=kwargs.get('max_test_tsteps', None),
         contraction=kwargs['contract'], ndc=kwargs['ndc'],
         near_scaling=float(kwargs.get('near_scaling', 0)), ndc_far=float(kwargs.get('ndc_far', 0)),
@@ -315,5 +314,5 @@ def load_data(data_downsample, data_dirs, validate_only, render_only, test_optim
     else:
         od.update(tr_loader=None, tr_dset=None)
     test_split = "render" if render_only else "test"
-    od.update(init_ts_data(data_dirs[0], split=test_split, hold_id=hold_id, **kwargs))
+    od.update(init_ts_data(data_downsample,data_dirs[0], split=test_split, hold_id=hold_id, **kwargs))
     return od

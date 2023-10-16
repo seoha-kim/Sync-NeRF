@@ -63,7 +63,7 @@ def run_ffmpeg(args):
 	time_slice = args.time_slice
 	if time_slice:
 	    start, end = time_slice.split(",")
-	    time_slice_value = f",select='between(t\,{start}\,{end})'"
+		time_slice_value = f",select='between(t\,{start}\,{end})'"
 	do_system(f"ffmpeg -i {video} -qscale:v 1 -qmin 1 -vf \"fps={fps}{time_slice_value}\" {images}/%04d.jpg")
 
 def run_colmap(args):

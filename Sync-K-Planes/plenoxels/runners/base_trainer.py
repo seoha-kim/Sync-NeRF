@@ -59,7 +59,9 @@ class BaseTrainer(abc.ABC):
         self.criterion = torch.nn.MSELoss(reduction='mean')
         self.regularizers = self.init_regularizers(**self.extra_args)
         self.gscaler = torch.cuda.amp.GradScaler(enabled=self.train_fp16)
-        self.test_optim = kwargs['test_optim'] 
+        self.test_optim = kwargs['test_optim']
+        self.l1_offset = kwargs['l1_offset'] 
+        self.l1_offset_gamma = kwargs['l1_offset_gamma']
 
         self.model.to(self.device)
 
@@ -86,9 +88,10 @@ class BaseTrainer(abc.ABC):
             loss = recon_loss
             for r in self.regularizers:
                 reg_loss = r.regularize(self.model, model_out=fwd_out)
-                l1loss = 0.0001 * torch.norm(fwd_out["offset"], p=1)
                 loss = loss + reg_loss
-                loss = loss + l1loss
+                if self.l1_offset:
+                    l1loss = self.l1_offset_gamma * torch.norm(fwd_out["offset"], p=1)
+                    loss = loss + l1loss
 
             self.timer.check("regularizaion-forward")
         # Update weights
@@ -146,6 +149,8 @@ class BaseTrainer(abc.ABC):
         log.info(f"Starting training from step {self.global_step + 1}")
         if self.test_optim:
             self.num_steps = 1001
+            self.save_every = 1000
+            self.valid_every = 1000
 
         pb = tqdm(initial=self.global_step, total=self.num_steps)
         self.offset_log = open(f'{self.log_dir}/cam_offset.txt', 'w')
@@ -322,9 +327,15 @@ class BaseTrainer(abc.ABC):
         }
 
     def save_model(self):
-        step_fname = os.path.join(self.log_dir, f'{self.global_step}-model.pth')
-        model_fname = os.path.join(self.log_dir, f'model.pth')
-        log.info(f'Saving model checkpoint to: {step_fname}')
+        if self.test_optim:
+            os.makedirs(os.path.join(self.log_dir, 'test_optim'), exist_ok=True)
+            step_fname = os.path.join(self.log_dir, f'test_optim/{self.global_step}-model.pth')
+            model_fname = os.path.join(self.log_dir, f'test_optim/model.pth')
+        else:
+            step_fname = os.path.join(self.log_dir, f'{self.global_step}-model.pth')
+            model_fname = os.path.join(self.log_dir, f'model.pth')
+
+        log.info(f'Saving model checkpoint to: {step_fname}')        
         torch.save(self.get_save_dict(), step_fname)
         torch.save(self.get_save_dict(), model_fname)
 

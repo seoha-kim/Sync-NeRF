@@ -314,10 +314,7 @@ class LLFFVideoDataset(Dataset):
         _calc_std(os.path.join(self.root_dir, 'frames'+('_{}'.format(int(self.downsample)))),
                   os.path.join(self.root_dir, 'stds'+('' if self.frame_start==0 else str(self.frame_start))+('_{}'.format(int(self.downsample)))),
                   frame_start=self.frame_start, n_frame=self.n_frames)
-        # if 'coffee_martini' in self.root_dir and not self.no_delete:
-        #    print('====================deletting unsynchronized video==============')
-        #    poses_bounds = np.concatenate([poses_bounds[:12], poses_bounds[13:]], axis=0)
-        #    self.video_paths.pop(12)
+
         # load full resolution image then resize
         if self.split in ['train', 'test']:
             assert len(poses_bounds) == len(self.video_paths), \
@@ -330,8 +327,6 @@ class LLFFVideoDataset(Dataset):
         # Step 1: rescale focal length according to training resolution
         H, W, self.focal = poses[0, :, -1]  # original intrinsics, same for all images
         self.img_wh = np.array([int(W / self.downsample), int(H / self.downsample)])
-        if self.white_bg:
-            chromakey = Image.new("RGBA", tuple(self.img_wh), (136,203,230))
         self.focal = [self.focal * self.img_wh[0] / W, self.focal * self.img_wh[1] / H]
 
         # Step 2: correct poses
@@ -354,12 +349,7 @@ class LLFFVideoDataset(Dataset):
         tt = self.poses[:, :3, 3]  # ptstocam(poses[:3,3,:].T, c2w).T
         up = normalize(self.poses[:, :3, 1].sum(0))
         rads = np.percentile(np.abs(tt), 90, 0)
-
         self.render_path = get_spiral(self.poses, self.near_fars, N_views=N_views)
-
-        # distances_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
-        # val_idx = np.argmin(distances_from_center)  # choose val image as the closest to
-        # center image
 
         # ray directions for all pixels, same for all images (same H, W, focal)
         W, H = self.img_wh
@@ -368,13 +358,11 @@ class LLFFVideoDataset(Dataset):
         average_pose = average_poses(self.poses)
         dists = np.sum(np.square(average_pose[:3, 3] - self.poses[:, :3, 3]), -1)
 
-
         i_test = np.array(self.hold_id)
         video_list = i_test if self.split != 'train' else list(set(np.arange(len(self.poses))) - set(i_test))
 
         self.camlist = list(set(np.arange(len(self.poses))))
         print('camlist:', self.camlist)
-        # print('video_list:', video_list)
         if type(optimize_test) != type(None):
             video_list = [optimize_test]
             print('updated video_list:', video_list)
@@ -396,18 +384,15 @@ class LLFFVideoDataset(Dataset):
             assert os.path.isdir(video_path)
             assert os.path.isfile(std_path)
             if self.white_bg:
+                white_bg = Image.new("RGBA", tuple(self.img_wh), (255,255,255))
                 frames = [Image.open(os.path.join(video_path, image_id)).convert('RGBA') for image_id in frames_paths]  
-                frames = [Image.alpha_composite(chromakey, image).convert('RGB') for image in frames]          
+                frames = [Image.alpha_composite(white_bg, image).convert('RGB') for image in frames]          
             else:
                 frames = [Image.open(os.path.join(video_path, image_id)).convert('RGB') for image_id in frames_paths]
             if self.downsample != 1.0:
                 if list(frames[0].size) != list(self.img_wh):
                     frames = [img.resize(self.img_wh, Image.LANCZOS) for img in frames]
             frames = [self.transform(img) for img in frames]  # (T, 3, h, w)
-            
-            # if self.white_bg:
-            #     frames = [img.view(4, -1).permute(1, 0) for img in frames]  # (T, h*w, 3) RGB
-            # else:
             frames = [img.view(3, -1).permute(1, 0) for img in frames]  # (T, h*w, 3) RGB
 
             frames = torch.stack(frames, dim=1) # hw T 3
@@ -454,9 +439,9 @@ class LLFFVideoDataset(Dataset):
 
         else:
             self.all_rays_weight = torch.stack(self.all_rays_weight, dim=0) # (Nr)
-            self.all_rays = torch.stack(self.all_rays, 0)   # (len(self.meta['frames]),h,w, 3)
+            self.all_rays = torch.stack(self.all_rays, 0) 
             T = self.all_rgbs[0].shape[1]
-            self.all_rgbs = torch.stack(self.all_rgbs, 0).reshape(-1,*self.img_wh[::-1], T, 3)  # (len(self.meta['frames]),h,w, T, 3)
+            self.all_rgbs = torch.stack(self.all_rgbs, 0).reshape(-1,*self.img_wh[::-1], T, 3)
             self.all_stds = torch.stack(self.all_stds, 0).reshape(-1,*self.img_wh[::-1])
             dynamic_mask = self.all_stds > self.temporal_variance_threshold
             self.dynamic_mask = dynamic_mask

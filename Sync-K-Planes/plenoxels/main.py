@@ -114,7 +114,7 @@ def main():
     if validate_only:
         trainer.validate()
     elif test_optim:
-        trainer.test_optim()
+        trainer.train()
     elif render_only:
         render_to_path(trainer, extra_name="")
     elif spacetime_only:

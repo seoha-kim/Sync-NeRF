@@ -59,19 +59,12 @@ class TimeMLP(torch.nn.Module):
 
     def forward(self, time_input, cam_id, time_freq, total_time=None, iteration=None, test_cam_offset=0.):
         out_dim = total_time*3 if self.using_view else total_time
-        # time_normilized = (torch.Tensor(time_input) / total_time).to(device)
         time_normilized = (torch.Tensor(time_input) / (total_time)-1).to(device)
         time_normilized = time_normilized + test_cam_offset
 
-        # print(self.cam_offset[cam_id.long()].to(device)[0], cam_id[0]) 
-        # offset 적용   / 실험 7 // 실험 8
         if self.args.cam_offset and (iteration >= self.args.offset_start_iters): 
-            # temp for exp 6
             if (iteration == self.args.offset_start_iters) and not self.args.render_only:
                 print(f'########### {iteration} iters - time offset learning started ###########')
-            #     for name, params in self.time_mlp.named_parameters():
-            #         params.requires_grad=False 
-            #     print(f'########### temp for exp 6 / {iteration} time mlp key is frozen ###########')
 
             cam_id = cam_id.expand(time_input.shape)
             cam_offset = self.cam_offset[cam_id.long()].to(device)
@@ -147,9 +140,7 @@ class TimeMLPRender(torch.nn.Module):
                 layer = torch.nn.Linear(featureD, self.out_dim)
 
             torch.nn.init.constant_(layer.bias, 0)
-            # torch.nn.init.xavier_uniform_(layer.weight, gain=(0.5 if not using_view else 1))
             torch.nn.init.xavier_uniform_(layer.weight, gain=(self.gain if not using_view else 1))
-            # torch.nn.init.kaiming_normal_(layer.weight, nonlinearity='relu')
 
             layers.append(layer)
             if mk != 'o':
@@ -159,63 +150,31 @@ class TimeMLPRender(torch.nn.Module):
         self.time_mlp = TimeMLP(self.n_layer, self.hidden_dim, self.in_dim, self.out_dim, using_view, self.activation, self.camoffset, self.args)
 
 
-        ### load pretrain mlp weights without time query ###
+        # load pretrain mlp weights without time query
         if self.args.no_load_timequery:
             pretrain = torch.load(self.args.ckpt)
-            print(f'########### timehead ckpt path {self.args.ckpt} ###########')
+            print(f'- timehead ckpt path {self.args.ckpt}')
 
-            # Temp - 실험 2
-            # time_query_den = torch.load('/home/seoha/workdirs/mixvoxels/_jupyer/den_time_query_params.th')
-            # print(time_query_den)
-            # time_query_rgb = torch.load('/home/seoha/workdirs/mixvoxels/_jupyer/rgb_time_query_params.th')
-            # print(time_query_rgb)
-
-            if using_view: # rgb mixvoxel mlp 불러와서 freeze
+            if using_view:
                 rendermodule = {}
                 for key in pretrain['state_dict'].keys():
                     if key.startswith('renderModule.mlp.') and key[17] != '4':
                         rendermodule[key[17:]] = pretrain['state_dict'][key]
-                        print(f'{key} is loaded with pretrain weight')
-                    # if key.startswith('renderModule.mlp.4.weight'):  Temp - 실험 2
-                    #     rendermodule[key[17:]] = time_query_rgb
                                                             
                 self.mlp.load_state_dict(rendermodule, strict=False)
-                print('########### load rgb weights in timeHead.py without time query ###########')
-                if args.mlp_freeze:
-                    for name, params in self.mlp.named_parameters():
-                        if not name.startswith('4'):
-                            print(f'{name} is frozen')
-                            params.requires_grad=False 
+                print('- load rgb weights in timeHead.py without time query')
 
-            else: # density mixvoxel mlp 불러와서 freeze
+            else: 
                 renderdenmodule = {}
                 for key in pretrain['state_dict'].keys():
                     if key.startswith('renderDenModule.mlp.') and key[20] != '4':
                         renderdenmodule[key[20:]] = pretrain['state_dict'][key]
-                        print(f'{key} is loaded with pretrain weight')
-                    # if key.startswith('renderDenModule.mlp.4.weight'):
-                    #     renderdenmodule[key[20:]] = time_query_den  
                         
                 self.mlp.load_state_dict(renderdenmodule, strict=False)
-                print('########### load rgb weights in timeHead.py without time query ###########')
-                if args.mlp_freeze:
-                    for name, params in self.mlp.named_parameters():
-                        if not name.startswith('4'):
-                            print(f'{name} is frozen')
-                            params.requires_grad=False 
-
-
+                print('- load rgb weights in timeHead.py without time query')
 
 
     def forward(self, features, time=None, viewdirs=None, cam_id=None, spatio_temporal_sigma_mask=None, temporal_mask=None, temporal_indices=None, iteration=None, t_inputs=None, test_cam_offset=0.):
-        # if self.args.cam_offset and (iteration >= self.args.offset_start_iters): 
-            # temp for exp 6
-            # if iteration == self.args.offset_start_iters:
-            #     for name, params in self.mlp.named_parameters():
-            #         params.requires_grad=False 
-            #     print('########### temp for exp 6 / {iteration} time mlp key is frozen ###########')
-        # spatio_temporal_sigma_mask: for rgb branch prunning
-        # temporal_mask is for re-sampling temporal sequence by variance of training pixels.
         Ns = features.shape[0]
         num_frames = self.total_time
         indata = [features, ]
@@ -225,7 +184,6 @@ class TimeMLPRender(torch.nn.Module):
         mlp_in = torch.cat(indata, dim=-1)
         mlp_output = self.mlp(mlp_in)
 
-        #t_inputs = np.broadcast_to(np.arange(0, num_frames/10, 0.1), (Ns, num_frames)) 
         if type(t_inputs) == type(None):
             t_inputs = np.arange(num_frames)
         t_inputs = np.broadcast_to(t_inputs, (Ns, num_frames)) 
@@ -246,7 +204,6 @@ class TimeMLPRender(torch.nn.Module):
 
         output = output.squeeze(dim=-1)
         return output, cam_offset
-
 
 
 class DirectDyRender(torch.nn.Module):
@@ -282,9 +239,7 @@ class DirectDyRender(torch.nn.Module):
             if mk == 'o' and _net_spec[i_mk-1] == 'd':
                 layer = torch.nn.Linear(featureD, self.out_dim)
             torch.nn.init.constant_(layer.bias, 0)
-            # torch.nn.init.xavier_uniform_(layer.weight, gain=(0.5 if not using_view else 1))
             torch.nn.init.xavier_uniform_(layer.weight, gain=(self.gain if not using_view else 1))
-            # torch.nn.init.kaiming_normal_(layer.weight, nonlinearity='relu')
 
             layers.append(layer)
             if mk != 'o':
@@ -292,34 +247,34 @@ class DirectDyRender(torch.nn.Module):
 
         self.mlp = torch.nn.Sequential(*layers)
 
-        ### load pretrain mlp weights without time query ###
+        # load pretrain mlp weights without time query
         if self.args.no_load_timequery:
             pretrain = torch.load(self.args.ckpt)
-            print(f'########### timehead ckpt path {self.args.ckpt} ###########')
+            print(f'- timehead ckpt path {self.args.ckpt}')
 
-            if using_view: # rgb mixvoxel mlp 불러와서 freeze
+            if using_view: 
                 rendermodule = {}
                 for key in pretrain['state_dict'].keys():
                     if key.startswith('renderModule.mlp.') and key[17] != '4':
                         rendermodule[key[17:]] = pretrain['state_dict'][key]
                                                             
                 self.mlp.load_state_dict(rendermodule, strict=False)
-                print('########### load rgb weights in timeHead.py without time query ###########')
+                print('- load rgb weights in timeHead.py without time query')
 
         
                 for name, params in self.mlp.named_parameters():
                     if not name.startswith('4'):
-                        print(f'mlp key {name} is loaded with pretrain weight  and frozen')
+                        print(f'mlp key {name} is loaded with pretrain weight and frozen')
                         params.requires_grad=False 
         
-            else: # density mixvoxel mlp 불러와서 freeze
+            else: 
                 renderdenmodule = {}
                 for key in pretrain['state_dict'].keys():
                     if key.startswith('renderDenModule.mlp.') and key[20] != '4':
                         renderdenmodule[key[20:]] = pretrain['state_dict'][key]
                         
                 self.mlp.load_state_dict(renderdenmodule, strict=False)
-                print('########### load rgb weights in timeHead.py without time query ###########')
+                print('- load rgb weights in timeHead.py without time query')
 
                 for name, params in self.mlp.named_parameters():
                     if not name.startswith('4'):
@@ -351,8 +306,7 @@ class DirectDyRender(torch.nn.Module):
 
         output = output.squeeze(dim=-1)
         return output
-
-
+    
 
 class DyRender(torch.nn.Module):
     def __init__(self, inChanel, viewpe=6, using_view=False, n_time_embedding=6,
@@ -421,7 +375,7 @@ class DyRender(torch.nn.Module):
         if self.using_view:
             indata += [viewdirs.unsqueeze(dim=1).expand(-1, num_frames, -1)]
             indata += [positional_encoding(viewdirs, self.viewpe).unsqueeze(dim=1).expand(-1, num_frames, -1)]
-        print(np.array(indata).shape)
+
         mlp_in = torch.cat(indata, dim=-1)
 
         origin_output = torch.zeros(Ns, num_frames, self.out_dim).to(features)
@@ -434,17 +388,13 @@ class DyRender(torch.nn.Module):
             st_mask = st_mask & temporal_mask
         mlp_in = mlp_in[st_mask]
         output = self.mlp(mlp_in)
-        # print(output.shape)
         if self.using_view:
             output = torch.sigmoid(output)
 
-        # mlp_in Ns x T x (ds + dt)
-        # TODO Wrong Bellow
         origin_output[st_mask] = output
         output = origin_output
         output = output.squeeze(dim=-1)
         return output
-
 
 
 class ForrierDyRender(torch.nn.Module):
@@ -522,24 +472,4 @@ class ForrierDyRender(torch.nn.Module):
             output = torch.sigmoid(output)
 
         output = output.squeeze(dim=-1)
-        return output, 0 # frequency_output.squeeze(dim=-1)
-
-
-# class Clamp(torch.autograd.Function):
-#     @staticmethod
-#     def forward(ctx, input):
-#         return input.clamp_(min=-0.00333, max=0.00333) # the value in iterative = 2
-
-#     @staticmethod
-#     def backward(ctx, grad_output):
-#         return grad_output.clone()
-
-# if self.args.cam_offset:
-#     self.cam_offset =  torch.nn.Parameter(torch.zeros([self.cam_length])) #torch.nn.Parameter(torch.zeros([len(camlist)]))
-#     #    torch.nn.init.normal_(self.cam_offset[1:], -0.001, 0.001)
-#     self.cam_offset.requires_grad = False
-#     # temp - for exp 5
-
-# else:
-#    self.cam_offset = torch.zeros([self.cam_length])
-    
+        return output, 0 

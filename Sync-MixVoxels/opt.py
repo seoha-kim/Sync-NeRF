@@ -26,9 +26,10 @@ def config_parser(cmd=None):
     parser.add_argument("--activation", default='relu', choices=['relu', 'leakyrelu','sigmoid', 'softplus', 'elu', 'gelu'])
     parser.add_argument("--timemlp_lr_factor", type=int, default=5)
     parser.add_argument("--camoffset_lr_factor", type=float, default=.5)
-    parser.add_argument('--cam_offset', default=False, action="store_true")
-    parser.add_argument('--mlp_freeze', default=False, action="store_true")
+    parser.add_argument('--cam_offset', default=True, action="store_true")
     parser.add_argument("--offset_start_iters", type=int, default=0)
+    parser.add_argument('--l1loss', default=True, action="store_true")
+    parser.add_argument("--l1gamma", type=float, default=0.001)
 
 
     parser.add_argument('--with_depth', action='store_true')

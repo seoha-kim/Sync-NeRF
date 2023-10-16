@@ -22,10 +22,14 @@ config = {
  'scheduler_type': 'warmup_cosine',
  'optim_type': 'adam',
  'lr': 0.01,
+
+ #  Time offset settings
  'offset_lambda': 0.1,
  'offset_freeze_iter': 50000,
  'normalize_scale': 0.8,
  'num_frames': 270,
+ 'l1_offset': True,
+ 'l1_offset_gamma': 0.0001,
 
  # Regularization
  'distortion_loss_weight': 0.001,
