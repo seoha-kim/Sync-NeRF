@@ -16,8 +16,8 @@ lr_dynamic_init = 0.02
 lr_dynamic_basis = 3e-3
 
 dataset_name = blendervideo
-datadir =  /home/vilab/dynamic/synthetic_v4/synthetic_unsync_all/deer/
-expname =  unsync_deer
+datadir =  path/to/data
+expname =  deer
 basedir = ./logs
 
 
