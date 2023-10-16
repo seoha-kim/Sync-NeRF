@@ -32,7 +32,7 @@ python train.py --config path/to/config.txt
 ```
 We also propose a method for optimizing time offsets during test time. You can execute this test-time optimization using the following command:
 ```
-python train.py --config path/to/config.txt --test_optim
+python train.py --config path/to/config.txt --test-optim
 ```
 
 After completing model training, you can perform evaluation using the --render_only 1 flags.
@@ -50,7 +50,7 @@ PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py
 
 We also propose a method for optimizing time offsets during test time. You can execute this test-time optimization using the following command:
 ```
-PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py --log-dir path/to/logfolder --test-optim
+PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py --log-dir path/to/logfolder --test_optim
 ```
 
 After completing model training, you can perform evaluation using the --validate-only or --rendering-only flags.
