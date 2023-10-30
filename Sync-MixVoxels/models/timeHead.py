@@ -59,8 +59,8 @@ class TimeMLP(torch.nn.Module):
 
     def forward(self, time_input, cam_id, time_freq, total_time=None, iteration=None, test_cam_offset=0.):
         out_dim = total_time*3 if self.using_view else total_time
-        time_normilized = (torch.Tensor(time_input) / (total_time)-1).to(device)
-        time_normilized = time_normilized + test_cam_offset
+        time_normalized = (torch.Tensor(time_input) / (total_time-1)).to(device)
+        time_normalized = time_normalized + test_cam_offset
 
         if self.args.cam_offset and (iteration >= self.args.offset_start_iters): 
             if (iteration == self.args.offset_start_iters) and not self.args.render_only:
@@ -69,12 +69,12 @@ class TimeMLP(torch.nn.Module):
             cam_id = cam_id.expand(time_input.shape)
             cam_offset = self.cam_offset[cam_id.long()].to(device)
 
-            time_plusoffset = time_normilized + cam_offset
+            time_plusoffset = time_normalized + cam_offset
             time_encoded = time_positional_encoding(time_plusoffset[...,None], time_freq)
 
         # no offset
         else:
-            time_encoded = time_positional_encoding(time_normilized[...,None], time_freq)
+            time_encoded = time_positional_encoding(time_normalized[...,None], time_freq)
 
         time_encoded = time_encoded / time_encoded.norm(dim=-1, keepdim=True)
         time_embedding = self.time_mlp(time_encoded).reshape(-1, out_dim, self.hidden_dim)
