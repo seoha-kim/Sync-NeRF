@@ -807,7 +807,7 @@ class MixVoxels(torch.nn.Module):
         if ray_valid.any():
             # dynamic branch
             sigma_feature = self.compute_densityfeature(xyz_sampled[ray_valid])
-            camid_denmask = cam_id.expand(xyz_sampled.shape[:2])[ray_valid][:,None]
+            camid_denmask = cam_id.expand(ray_valid.shape)[ray_valid][:,None]
 
             if temporal_indices is None:
                 masked_temporal_indices = temporal_indices
@@ -890,7 +890,7 @@ class MixVoxels(torch.nn.Module):
             app_features = self.compute_appfeature(xyz_sampled[app_spatio_mask])
             rgb_query_time = time.time() - rgb_query_start
 
-            camid_rgbmask = cam_id.expand(xyz_sampled.shape[:2])[app_spatio_mask][:,None]
+            camid_rgbmask = cam_id.expand(app_spatio_mask.shape)[app_spatio_mask][:,None]
             if self.time_head == 'timemlprender':
                 valid_rgbs, cam_offset = self.renderModule(features=app_features, viewdirs=viewdirs[app_spatio_mask], cam_id=camid_rgbmask,
                                             spatio_temporal_sigma_mask=app_mask[app_spatio_mask], iteration=iteration,
