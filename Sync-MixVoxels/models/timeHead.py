@@ -66,9 +66,7 @@ class TimeMLP(torch.nn.Module):
             if (iteration == self.args.offset_start_iters) and not self.args.render_only:
                 print(f'########### {iteration} iters - time offset learning started ###########')
 
-            cam_id = cam_id.expand(time_input.shape)
-            cam_offset = self.cam_offset[cam_id.long()].to(device)
-
+            cam_offset = self.cam_offset[cam_id.long()].expand(time_input.shape)
             time_plusoffset = time_normalized + cam_offset
             time_encoded = time_positional_encoding(time_plusoffset[...,None], time_freq)
 
