@@ -18,10 +18,7 @@ pip install -r requirements.txt
 ```
 <br>
 
-You can download Our Unsynchronized Dynamic Blender Dataset from the following link:
-
-<a href="https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing">Unsynchronized Dynamic Blender Dataset
-</a>
+You can download Our Unsynchronized Dynamic Blender Dataset from this <a href="https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing">link</a>
 <br>
 <br>
 
