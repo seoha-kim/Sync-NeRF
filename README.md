@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 You can download Our Unsynchronized Dynamic Blender Dataset from the following link:
 
-<a href="https://yonsei-my.sharepoint.com/personal/hailey07_o365_yonsei_ac_kr/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fhailey07_o365_yonsei_ac_kr%2FDocuments%2FSync-NeRF&ga=1">Unsynchronized Dynamic Blender Dataset
+<a href="https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing">Unsynchronized Dynamic Blender Dataset
 </a>
 <br>
 <br>
