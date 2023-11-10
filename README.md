@@ -2,7 +2,7 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2310.13356-006600)](https://arxiv.org/abs/2310.13356) 
 [![project_page](https://img.shields.io/badge/project_page-68BC71)](https://seoha-kim.github.io/sync-nerf/)
-[![dataset](https://img.shields.io/badge/dataset-00A98F)](https://yonsei-my.sharepoint.com/:f:/g/personal/hailey07_o365_yonsei_ac_kr/Er_SF3saB9JPp-uaj0W9NaABOZ0V7czk90yMp4UNybXvPg)
+[![dataset](https://img.shields.io/badge/dataset-00A98F)](https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing)
 
 Official repository for <a href="">Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</a><br>
 enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dataset.
