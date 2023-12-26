@@ -51,3 +51,13 @@ PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py --log-di
 ```
 
 After completing model training, you can perform evaluation using the --validate-only or --rendering-only flags.
+
+## Citation
+```latex
+@article{Kim2024Sync,
+  title={Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos},
+  author={Seoha Kim, Jeongmin Bae, Youngsik Yun, Hahyun Lee, Gun Bang, Youngjung Uh},
+  booktitle={AAAI},
+  year={2024}
+}
+```
