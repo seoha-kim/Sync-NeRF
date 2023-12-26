@@ -58,6 +58,5 @@ After completing model training, you can perform evaluation using the --validate
   title={Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos},
   author={Seoha Kim, Jeongmin Bae, Youngsik Yun, Hahyun Lee, Gun Bang, Youngjung Uh},
   booktitle={AAAI},
-  year={2024}
-}
+  year={2024}}
 ```
