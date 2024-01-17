@@ -12,7 +12,7 @@ enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied
 <br>
 
 ## Setup
-We provide an integrated requirements file for MixVoxels and K-Planes.
+We provide an integrated requirements file for Sync-MixVoxels and Sync-K-Planes.
 ```
 pip install -r requirements.txt
 ```
@@ -22,7 +22,7 @@ You can download our Unsynchronized Dynamic Blender Dataset from this <a href="h
 <br>
 <br>
 
-## MixVoxels
+## Sync-MixVoxels
 We provide example configs for the Unsynchronized Plenoptic Video Dataset and Unsynchronized Dynamic Blender Dataset. You can train the model using the following command:
 ```
 python train.py --config path/to/config.txt
@@ -39,7 +39,7 @@ python train.py --config path/to/config.txt --render_only 1 --ckpt path/to/check
 
 <br>
 
-## K-Planes
+## Sync-K-Planes
 K-Planes offers two versions of config: hybrid and explicit. We provide example configs for the Unsynchronized Plenoptic Video Dataset and Unsynchronized Dynamic Blender Dataset. You can train the model using the following command:
 ```
 PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py
