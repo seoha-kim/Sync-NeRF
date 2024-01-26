@@ -60,3 +60,6 @@ After completing model training, you can perform evaluation using the --validate
   booktitle={AAAI},
   year={2024}}
 ```
+
+## Acknowledge
+The codes are based on <a href="https://github.com/fengres/mixvoxels">MixVoxels</a> and <a href="https://github.com/sarafridov/K-Planes">K-Planes</a>, many thanks to the authors.
