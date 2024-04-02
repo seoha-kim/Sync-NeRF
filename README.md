@@ -4,7 +4,7 @@
 [![project_page](https://img.shields.io/badge/project_page-68BC71)](https://seoha-kim.github.io/sync-nerf/)
 [![dataset](https://img.shields.io/badge/dataset-00A98F)](https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing)
 
-Official repository for <a href="https://arxiv.org/abs/2310.13356">Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos</a><br>
+Official repository for <a href="https://arxiv.org/abs/2310.13356">"Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos"</a><br>
 enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dataset.
 <p align="center" width="100;">
 <img src="https://github.com/seoha-kim/Sync-NeRF/assets/46925617/616278bb-4bb5-41c5-8f57-12242c8403e0">
