@@ -55,10 +55,15 @@ After completing model training, you can perform evaluation using the --validate
 ## Citation
 ```latex
 @article{Kim2024Sync,
-  title={Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos},
-  author={Seoha Kim, Jeongmin Bae, Youngsik Yun, Hahyun Lee, Gun Bang, Youngjung Uh},
-  booktitle={AAAI},
-  year={2024}}
+author = {Kim, Seoha and Bae, Jeongmin and Yun, Youngsik and Lee, Hahyun and Bang, Gun and Uh, Youngjung},
+year = {2024},
+month = {03},
+pages = {2777-2785},
+title = {Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos},
+volume = {38},
+journal = {Proceedings of the AAAI Conference on Artificial Intelligence},
+doi = {10.1609/aaai.v38i3.28057}
+}
 ```
 
 ## Acknowledge
