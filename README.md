@@ -5,6 +5,11 @@
 [![project_page](https://img.shields.io/badge/project_page-68BC71)](https://seoha-kim.github.io/sync-nerf/)
 [![dataset](https://img.shields.io/badge/dataset-00A98F)](https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing)
 
+The current status of the paper on arXiv is withdrawn, so I have temporarily uploaded the paper to my GitHub. <br>
+I am in the process of extending the content of this paper to Gaussian Splatting for journal publication. Please stay tuned.
+
+---
+
 Official repository for <a href="https://arxiv.org/abs/2310.13356">"Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos"</a><br>
 enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dataset.
 <p align="center" width="100;">
