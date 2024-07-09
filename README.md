@@ -6,7 +6,7 @@
 [![dataset](https://img.shields.io/badge/dataset-00A98F)](https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing)
 
 The current status of the paper on arXiv is withdrawn, so I have temporarily uploaded the paper to my GitHub. <br>
-I am in the process of extending the content of this paper to Gaussian Splatting for journal publication. Please stay tuned.
+I am in the process of extending this paper to Gaussian Splatting for journal publication. Please stay tuned.
 
 ---
 
