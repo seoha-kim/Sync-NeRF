@@ -1,6 +1,7 @@
 # Sync-NeRF : Generalizing Dynamic NeRFs <br> to Unsynchronized Videos
 
 [![arXiv](https://img.shields.io/badge/arXiv-2310.13356-006600)](https://arxiv.org/abs/2310.13356) 
+[![paper](https://img.shields.io/badge/paper-5FB404)](https://github.com/seoha-kim/seoha-kim.github.io/blob/main/sync-nerf/Sync_NeRF_paper.pdf) 
 [![project_page](https://img.shields.io/badge/project_page-68BC71)](https://seoha-kim.github.io/sync-nerf/)
 [![dataset](https://img.shields.io/badge/dataset-00A98F)](https://drive.google.com/drive/folders/1wvLtucVrmFf7fj-kWr-HMk3boaI46cIX?usp=sharing)
 
