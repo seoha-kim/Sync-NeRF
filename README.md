@@ -28,8 +28,13 @@ You can download our Unsynchronized Dynamic Blender Dataset from this <a href="h
 <br>
 <br>
 
+
 ## Sync-MixVoxels
-We provide example configs for the Unsynchronized Plenoptic Video Dataset and Unsynchronized Dynamic Blender Dataset. You can train the model using the following command:
+
+As in the MixVoxels repository, please follow the below step:
+> Please note that in your first running, the above command will first pre-process the dataset, including resizing the frames by a factor of 2 (to 1K resolution which is a standard), as well as calculating the std of each video and save them into your disk. The pre-processing will cost about 2 hours, but is only required at the first running. After the pre-processing, the command will automatically train your scenes.
+
+You can train the model using the following command:
 ```
 python train.py --config path/to/config.txt
 ```
@@ -46,7 +51,11 @@ python train.py --config path/to/config.txt --render_only 1 --ckpt path/to/check
 <br>
 
 ## Sync-K-Planes
-K-Planes offers two versions of config: hybrid and explicit. We provide example configs for the Unsynchronized Plenoptic Video Dataset and Unsynchronized Dynamic Blender Dataset. You can train the model using the following command:
+
+As in the K-Planes repository, please follow the below step:
+> Run first for 1 step with data_downsample=4 to generate weights for ray importance sampling
+
+You can train the model using the following command:
 ```
 PYTHONPATH='.' python plenoxels/main.py --config-path path/to/config.py
 ```
