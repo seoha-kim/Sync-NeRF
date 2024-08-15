@@ -6,7 +6,7 @@
 
 
 Official repository for <a href="https://arxiv.org/abs/2310.13356">"Sync-NeRF: Generalizing Dynamic NeRFs to Unsynchronized Videos"</a><br>
-enabling dynamic NeRFs to successfully reconstruct the scene from unsynchroznied dataset.
+enabling dynamic NeRFs to successfully reconstruct the scene from unsynchronized dataset.
 <p align="center" width="100;">
 <img src="https://github.com/seoha-kim/Sync-NeRF/assets/46925617/616278bb-4bb5-41c5-8f57-12242c8403e0">
 </p>
